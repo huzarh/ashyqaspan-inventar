@@ -1,6 +1,10 @@
-# Atölye Envanter
+# Ashyq Aspan Foundation — Инженерлік шеберхана тізімдемесі / Инвентарь мастерской
 
-Fotoğraflı malzeme kaydı, stok giriş/çıkışı, yerinde sayım, hareket geçmişi, Excel raporu ve tam yedek. Tek bilgisayarda, internet ve ek Python paketleri olmadan çalışır.
+![Ashyq Aspan Foundation — Инженерлік шеберхана тізімдемесі](docs/og-cover.jpg)
+
+**🌐 Live Web App (GitHub Pages):** [https://huzarh.github.io/ashyqaspan-inventar/](https://huzarh.github.io/ashyqaspan-inventar/)
+
+Fotoğraflı malzeme kaydı, stok giriş/çıkışı, yerinde sayım, hareket geçmişi, Kazakça (ҚАЗ) / Rusça (РУС) çoklu dil desteği, Excel raporu ve tam yedek. Hem yerel ağda (SQLite ile) hem de GitHub Pages üzerinde çalışır.
 
 ## Başlatma
 

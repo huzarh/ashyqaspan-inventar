@@ -18,7 +18,7 @@ def build():
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     (DOCS_DIR / ".nojekyll").write_text("", encoding="utf-8")
 
-    for fname in ["index.html", "style.css", "app.js", "logo.png", "favicon.svg", "i18n_data.json"]:
+    for fname in ["index.html", "style.css", "app.js", "logo.png", "favicon.svg", "og-cover.jpg", "og-cover.png", "i18n_data.json"]:
         src = STATIC_DIR / fname
         if src.exists():
             shutil.copy2(src, DOCS_DIR / fname)
