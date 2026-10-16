@@ -574,7 +574,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise Problem('Dosya bulunamadı.', 404)
             if not file.is_file():
                 raise Problem('Dosya bulunamadı.', 404)
-            types = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml'}
+            types = {'.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
             return self.reply(200, file.read_bytes(), types.get(file.suffix, 'application/octet-stream'))
         except Problem as exc:
             self.reply(exc.status, dict(error=exc.message, **exc.extra))

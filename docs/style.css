@@ -254,7 +254,8 @@ a {
   height: 16px;
 }
 
-.sidebar-note strong {
+.sidebar-note strong,
+.sidebar-note .sidebar-note-title {
   display: block;
   color: var(--ink-strong);
   font-size: 12px;
@@ -343,7 +344,8 @@ main {
   color: var(--muted);
 }
 
-.breadcrumb strong {
+.breadcrumb strong,
+.breadcrumb .breadcrumb-current {
   color: var(--ink-strong);
   font-weight: 600;
 }
@@ -566,7 +568,8 @@ h3 {
   margin-bottom: 4px;
 }
 
-.stat strong {
+.stat strong,
+.stat .stat-val {
   font-size: 22px;
   font-weight: 600;
   color: var(--ink-strong);
@@ -1229,8 +1232,10 @@ dialog::backdrop {
   color: var(--muted);
 }
 
-#photo-placeholder strong {
+#photo-placeholder strong,
+#photo-placeholder .photo-title {
   font-size: 13px;
+  font-weight: 600;
   color: var(--ink-strong);
 }
 
@@ -1288,13 +1293,14 @@ dialog::backdrop {
   color: var(--secondary);
 }
 
-.field b {
+.field b,
+.field .field-label {
   font-weight: 500;
   color: var(--ink-strong);
   display: inline;
 }
 
-.field > span:not(#move-quantity-label) {
+.field > span:not(#move-quantity-label):not(.field-label) {
   color: var(--red);
 }
 
@@ -2194,4 +2200,69 @@ body.busy {
   width: 13px;
   height: 13px;
 }
+
+.seo-section {
+  margin-top: 28px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.seo-banner-wrap {
+  margin-bottom: 16px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #f8fbff;
+}
+
+.seo-banner-img {
+  width: 100%;
+  max-width: 760px;
+  height: auto;
+  display: block;
+}
+
+.seo-section h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  margin: 0 0 8px;
+}
+
+.seo-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  margin: 14px 0 6px;
+}
+
+.seo-section p {
+  margin: 0 0 10px;
+}
+
+.seo-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.seo-links a {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.seo-links a:hover {
+  text-decoration: underline;
+}
+
 
