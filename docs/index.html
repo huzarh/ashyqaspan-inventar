@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#00a2ff"><meta name="description" content="Шеберхана — Қойма және заттар есебі / Инвентарь мастерской (Malzeme Envanteri)">
+  <title>Шеберхана — Қойма есебі</title>
+  <link rel="icon" href="logo.png" type="image/png"><link rel="stylesheet" href="style.css?v=8">
+  <script src="app.js?v=8" defer></script>
+</head>
+<body>
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+ <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z M3 8v9l9 5 9-5V8 M12 13v9 M7.5 5.5l9 5"/></symbol>
+ <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14"/></symbol>
+ <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+ <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 11a9 9 0 1 1 2.3 7 M3 4v7h7 M12 7v5l4 2"/></symbol>
+ <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 7h4l2-3h6l2 3h4v14H3Z"/><circle cx="12" cy="13" r="4"/></symbol>
+ <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12 M7 10l5 5 5-5 M4 16v5h16v-5"/></symbol>
+ <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12 M6 18 18 6"/></symbol>
+ <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+ <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14 m-5-5 5 5-5 5"/></symbol>
+ <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+ <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 5h13 M8 12h13 M8 19h13 M3 5h.01 M3 12h.01 M3 19h.01"/></symbol>
+ <symbol id="i-archive" viewBox="0 0 24 24"><path d="M4 8h16v13H4Z M2 3h20v5H2Z M9 12h6"/></symbol>
+ <symbol id="i-edit" viewBox="0 0 24 24"><path d="m15 4 5 5 M3 21l5-1L21 7l-5-5L3 15v6Z"/></symbol>
+ <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18 M8 6V4h8v2 M19 6l-1 14H6L5 6 M10 11v6 M14 11v6"/></symbol>
+ <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+ <symbol id="i-alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Z M12 9v5 M12 17v.1"/></symbol>
+ <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6l9-4Z m-5 10 3 3 7-7"/></symbol>
+</defs></svg>
+<a class="skip" id="skip-link" href="#main">Негізгі бөлімге өту</a>
+<aside class="sidebar">
+ <a class="brand" href="./" aria-label="Шеберхана"><span class="brand-mark"><img src="logo.png" alt="Logo" class="brand-logo"></span><span><span id="brand-name">шеберхана</span><span class="brand-sub" id="brand-sub">ҚОЙМА ЖӘНЕ ЗАТТАР ЕСЕБІ</span></span></a>
+ <div class="nav-label" id="nav-workspace-label">БӨЛІМДЕР</div>
+ <nav aria-label="Негізгі мәзір">
+  <button class="nav active" data-page="inventory"><svg class="icon"><use href="#i-box"/></svg><em id="nav-inv-text">Қойма (Заттар)</em><span id="nav-count">—</span></button>
+  <button class="nav" data-page="pending"><svg class="icon"><use href="#i-check"/></svg><em id="nav-pend-text">Санау керек</em><span id="pending-count">—</span></button>
+  <button class="nav" data-page="packages"><svg class="icon"><use href="#i-camera"/></svg><em id="nav-pkg-text">Қораптарды тексеру</em></button>
+  <button class="nav" data-page="history"><svg class="icon"><use href="#i-history"/></svg><em id="nav-hist-text">Кіріс-шығыс тарихы</em></button>
+  <button class="nav" data-page="archive"><svg class="icon"><use href="#i-archive"/></svg><em id="nav-arch-text">Архив</em></button>
+ </nav>
+ <div class="sidebar-note"><svg class="icon"><use href="#i-shield"/></svg><strong id="sidebar-note-title">Барлық дерек осы компьютерде.</strong><p id="sidebar-note-desc">Фотолар, заттардың саны және кіріс-шығыс тарихы толық сақталады.</p><button id="help-btn" class="text-btn"><span id="help-btn-text">Қалай қолданады?</span> <span>↗</span></button></div>
+ <div class="connection" id="connection"><span class="dot"></span>Қосылуда…</div>
+</aside>
+<main id="main">
+ <header class="topbar"><div class="breadcrumb"><span id="bread-root">Шеберхана</span> <span>/</span> <strong id="breadcrumb">Қойма (Заттар)</strong></div><div class="top-actions"><button type="button" id="auth-btn" class="btn ghost auth-btn"><svg class="icon"><use href="#i-lock"/></svg><span id="auth-btn-text">Рұқсат кілті</span></button><div class="lang-switch" role="group" aria-label="Тіл / Язык"><button type="button" class="lang-btn active" data-lang="kz">KZ</button><button type="button" class="lang-btn" data-lang="ru">RU</button></div><button id="backup-btn" class="btn ghost"><svg class="icon"><use href="#i-shield"/></svg><span id="backup-btn-text">Базаны сақтау</span></button><button id="restore-btn" class="btn ghost small-label" id="restore-btn-text">Базаны жүктеу</button><input id="restore-file" type="file" accept=".json,application/json" hidden></div></header>
+ <section class="content">
+  <div class="heading"><div><div class="eyebrow" id="page-eyebrow">ШЕБЕРХАНА ҚОЙМАСЫ</div><h1 id="page-title">Қоймадағы заттар</h1><p id="page-description">Керек затты оңай табыңыз, санын өзгертіңіз, кіріс-шығысты белгілеп отырыңыз.</p></div><div class="heading-actions"><button id="excel-btn" class="btn"><svg class="icon"><use href="#i-download"/></svg><span id="excel-btn-text">Excel-ге шығару</span></button><button id="add-btn" class="btn primary"><svg class="icon"><use href="#i-plus"/></svg><span id="add-btn-text">Жаңа зат қосу</span></button></div></div>
+  <div class="stats" id="stats"><button class="stat" data-stat="inventory"><span class="stat-icon mint"><svg class="icon"><use href="#i-box"/></svg></span><span><span class="stat-label" id="stat-total-label">Барлық зат түрі</span><strong id="stat-total">—</strong><small id="stat-total-sub">Қоймадағы белсенді заттар</small></span></button><button class="stat" data-stat="pending"><span class="stat-icon sand"><svg class="icon"><use href="#i-check"/></svg></span><span><span class="stat-label" id="stat-pending-label">Санау керек</span><strong id="stat-pending">—</strong><small id="stat-pending-sub">Қолмен санап, нақтылау керек</small></span></button><button class="stat" data-stat="low"><span class="stat-icon peach"><svg class="icon"><use href="#i-alert"/></svg></span><span><span class="stat-label" id="stat-low-label">Аз қалды</span><strong id="stat-low">—</strong><small id="stat-low-sub">Таусылуға жақын заттар</small></span></button></div>
+  <div id="page-note" class="page-note" hidden></div>
+  <section class="workspace" aria-label="Заттар тізімі">
+   <div class="toolbar"><label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Заттың аты, моделі, орны немесе коды бойынша іздеу…" autocomplete="off" aria-label="Іздеу"><kbd>/</kbd></label><div class="filters"><select id="category-filter" aria-label="Категория"><option value="">Барлық категориялар</option></select><select id="status-filter" aria-label="Статус"><option value="" id="st-opt-all">Барлық статустар</option><option value="verified" id="st-opt-ver">Тексерілді</option><option value="pending" id="st-opt-pend">Санау керек</option><option value="low" id="st-opt-low">Аз қалды</option><option value="zero" id="st-opt-zero">Таусылды (0)</option></select><select id="sort" aria-label="Сұрыптау"><option value="newest" id="sort-opt-new">Алдымен жаңалары</option><option value="updated" id="sort-opt-upd">Соңғы өзгергендер</option><option value="name" id="sort-opt-name">Аты бойынша (А–Я)</option></select><div class="view-switch" aria-label="Көрініс"><button id="view-list" class="icon-btn" aria-label="Тізім" aria-pressed="false"><svg class="icon"><use href="#i-list"/></svg></button><button id="view-grid" class="icon-btn active" aria-label="Карточкалар" aria-pressed="true"><svg class="icon"><use href="#i-grid"/></svg></button></div></div></div>
+   <div class="list-heading"><span id="result-count" aria-live="polite">Жүктелуде…</span><button id="clear-filters" class="text-btn" hidden>Фильтрді тазалау</button></div>
+   <div id="records" aria-live="polite"><div class="loading">Ашылуда…</div></div>
+   <div class="pagination"><span id="page-info"></span><div><button id="prev-page" class="btn compact">Артқа</button><button id="next-page" class="btn compact">Алға</button></div></div>
+  </section>
+  <p class="bottom-note" id="bottom-note">Заттардың саны өлшем бірлігімен бірге жазылады. Жабық қораптардың ішін ашып, бөлек санау керек.</p>
+ </section>
+</main>
+
+<dialog id="item-dialog" aria-labelledby="item-title">
+ <form id="item-form"><div class="dialog-head"><div><div class="eyebrow" id="item-eyebrow">ЗАТ КАРТОЧКАСЫ</div><h2 id="item-title">Жаңа зат қосу</h2></div><button type="button" class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div>
+ <div class="dialog-body"><label class="photo-zone" id="photo-zone"><input id="photo-file" type="file" accept="image/*" capture="environment"><span id="photo-placeholder"><svg class="icon"><use href="#i-camera"/></svg><strong id="photo-add-title">Фотоға түсіру (Камера)</strong><small id="photo-add-hint">Бассаңыз бірден камера ашылады</small></span><img id="photo-preview" alt="Заттың фотосы" hidden></label><div class="photo-actions"><button type="button" id="gallery-btn" class="text-btn">Галереядан таңдау</button><input id="gallery-file" type="file" accept="image/*" hidden><button type="button" id="remove-photo" class="text-btn danger" hidden>Фотоны өшіру</button></div>
+ <button type="button" class="btn ai-fill-btn" id="ai-save-btn">🤖 Форманы AI толтырсын (Сақтап, тағы қосу)</button>
+ <label class="field"><b id="lbl-item-name">Заттың аты</b> <span>*</span><input name="name" id="item-name" required maxlength="200" placeholder="Мысалы: ESP32-S3 платасы" autocomplete="off"></label>
+ <div id="duplicates" class="duplicates" hidden></div>
+ <div class="form-grid"><label class="field"><b id="lbl-item-cat">Категория</b> <span>*</span><input name="category" id="item-category" required maxlength="100" list="categories" placeholder="Мысалы: Электроника"><datalist id="categories"></datalist></label><label class="field"><b id="lbl-item-model">Маркасы / моделі</b><input name="model" id="item-model" maxlength="300" placeholder="Мысалы: ESP32-S3 N16R8"></label></div>
+ <div class="form-grid three"><label class="field" id="initial-quantity"><b id="lbl-item-qty">Қазіргі саны</b> <span>*</span><input name="quantity" type="number" min="0" max="100000000" step="0.001" value="1" required inputmode="decimal"></label><label class="field"><b id="lbl-item-unit">Өлшем бірлігі</b> <span>*</span><select name="unit" id="item-unit"></select></label><label class="field"><b id="lbl-item-min">Ең аз қалдық</b><input name="minimum" type="number" min="0" max="100000000" step="0.001" value="0" inputmode="decimal"><small id="lbl-item-min-hint">0 = ескерту керек емес</small></label></div>
+ <label class="field"><b id="lbl-item-loc">Қай жерде тұр? (сөре / үстел)</b><input name="location" id="item-location" maxlength="200" placeholder="Мысалы: Ақ шкаф · 2-сөре · А қорабы"></label>
+ <label class="field"><b id="lbl-item-notes">Қосымша ақпарат (комментарий)</b><textarea name="notes" id="item-notes" rows="3" maxlength="4000" placeholder="Сипаттамасы, комплектісі немесе ескерту…"></textarea></label>
+ <label class="checkbox" id="package-field"><input name="is_package" type="checkbox"><span id="lbl-item-pkg">Бұл — іші әлі ашылмаған жабық қорап / пакет</span></label>
+ <p id="item-error" class="form-error" role="alert" hidden></p></div>
+ <div class="dialog-footer"><div class="footer-left"><button type="button" class="btn" id="item-cancel-btn" data-close>Болдырмау</button><button type="button" class="btn danger-btn" id="delete-item-btn" hidden><svg class="icon"><use href="#i-trash"/></svg><span id="delete-item-btn-text">Өшіру</span></button></div><div><button type="submit" class="btn" id="save-next" name="action" value="next">Сақтап, тағы қосу</button><button type="submit" class="btn primary" name="action" value="save" id="save-item">Сақтау</button></div></div></form>
+</dialog>
+
+<dialog id="move-dialog" class="small-dialog" aria-labelledby="move-title"><form id="move-form"><div class="dialog-head"><div><div class="eyebrow" id="move-eyebrow">ҚОЙМА ОПЕРАЦИЯСЫ</div><h2 id="move-title">Заттың санын өзгерту</h2></div><button type="button" class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div id="move-summary" class="move-summary"></div><div class="segmented" id="move-kinds"><button type="button" data-kind="giriş" class="active" id="kind-btn-in">+ Қосу (Кіріс)</button><button type="button" data-kind="çıkış" id="kind-btn-out">− Алу (Шығыс)</button><button type="button" data-kind="sayım" id="kind-btn-cnt">Нақты санын жазу</button></div><p id="move-hint" class="hint"></p><label class="field"><span id="move-quantity-label">Қанша қосылды?</span><input id="move-quantity" name="quantity" type="number" min="0.001" step="0.001" required inputmode="decimal" placeholder="Санын жазыңыз"></label><div id="move-result" class="move-result"></div><label class="field"><b id="lbl-move-note">Түсініктеме (қайда берілді / қайдан келді)</b><textarea name="note" id="move-note" rows="2" maxlength="1000" placeholder="Мысалы: Жаңа партия келді / жобаға алынды / сөрені санадық"></textarea></label><p id="move-error" class="form-error" role="alert" hidden></p></div><div class="dialog-footer"><button type="button" class="btn" id="move-cancel-btn" data-close>Болдырмау</button><button type="submit" class="btn primary" id="save-move">Сақтау</button></div></form></dialog>
+
+<dialog id="detail-dialog" class="drawer" aria-labelledby="detail-title"><div class="dialog-head"><div><div class="eyebrow" id="detail-code"></div><h2 id="detail-title"></h2></div><button class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="detail-content" class="dialog-body"></div></dialog>
+
+<dialog id="help-dialog" class="small-dialog" aria-labelledby="help-title"><div class="dialog-head"><h2 id="help-title">Қалай қолданады?</h2><button class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body help" id="help-body"></div></dialog>
+
+<dialog id="auth-dialog" class="small-dialog" aria-labelledby="auth-title"><form id="auth-form"><div class="dialog-head"><div><div class="eyebrow" id="auth-eyebrow">ҚАУІПСІЗДІК</div><h2 id="auth-title">Рұқсат кілтін енгізіңіз</h2></div><button type="button" class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><p id="auth-desc" class="hint">Өзгерту, өшіру және қалдықты түзету үшін кілт сөзді жазыңыз.</p><label class="field"><b id="lbl-auth-key">Кілт сөз (Пароль)</b><input id="auth-key-input" type="password" required autocomplete="off" placeholder="Кілт сөзді жазыңыз…"></label><p id="auth-error" class="form-error" role="alert" hidden></p></div><div class="dialog-footer"><button type="button" class="btn" id="auth-cancel-btn" data-close>Болдырмау</button><button type="submit" class="btn primary" id="auth-submit-btn">Растау</button></div></form></dialog>
+
+<dialog id="confirm-dialog" class="small-dialog" aria-labelledby="confirm-title"><div class="dialog-head"><h2 id="confirm-title">Растау</h2></div><div class="dialog-body"><p id="confirm-text"></p><p id="confirm-error" class="form-error" role="alert" hidden></p></div><div class="dialog-footer"><button class="btn" id="confirm-cancel">Болдырмау</button><button class="btn primary" id="confirm-ok">Иә, растаймын</button></div></dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+<noscript>Бұл бағдарлама жұмыс істеуі үшін браузерде JavaScript қосулы болуы керек.</noscript>
+</body></html>

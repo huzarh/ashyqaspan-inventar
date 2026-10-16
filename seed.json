@@ -1,0 +1,1181 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "name": "Masaüstü bilgisayar",
+      "category": "Bilgisayar",
+      "model": "Beyaz kasa; donanım özellikleri okunmuyor",
+      "quantity": 10,
+      "unit": "adet",
+      "location": "",
+      "notes": "Duvar sırasında 8, pencere önünde 2 kasa. Ayrı alanlar kabul edildi; aynı cihazların taşındığı karelerse toplam düzeltilmeli.",
+      "verification_note": "Alan eşleşmesi",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg",
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "Bilgisayar monitörü",
+      "category": "Bilgisayar",
+      "model": "Marka / ekran boyutu okunmuyor",
+      "quantity": 10,
+      "unit": "adet",
+      "location": "",
+      "notes": "8 duvar sırası + 2 pencere önü monitörü. Alanların ayrı olduğu sahada teyit edilmeli.",
+      "verification_note": "Alan eşleşmesi",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg",
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "Klavye",
+      "category": "Bilgisayar",
+      "model": "Kablolu; model okunmuyor",
+      "quantity": 10,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masaüstü çalışma yerlerinde 8 + 2 klavye. Dizüstünün dahili klavyesi ayrıca sayılmadı.",
+      "verification_note": "Alan eşleşmesi",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg",
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "Bilgisayar faresi",
+      "category": "Bilgisayar",
+      "model": "Model okunmuyor",
+      "quantity": 5,
+      "unit": "adet",
+      "location": "",
+      "notes": "Lehim masasında 1, pencere önünde 2, duvar sırasında açıkça seçilebilen 2. Diğer fareler örtülü olabilir.",
+      "verification_note": "Asgari sayım",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5019.jpeg",
+        "IMG_5029.jpeg",
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "Dizüstü bilgisayar",
+      "category": "Bilgisayar",
+      "model": "Siyah gövde; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Pencere önündeki masada açık dizüstü.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg"
+      ]
+    },
+    {
+      "name": "USB bellek",
+      "category": "Bilgisayar",
+      "model": "Model / kapasite okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masanın sol tarafındaki metal USB bellek.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg"
+      ]
+    },
+    {
+      "name": "Taşınabilir şarj cihazı / powerbank",
+      "category": "Bilgisayar",
+      "model": "Beyaz dikey gövde; tipi teyit edilmeli",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "İki bilgisayar arasında duran beyaz cihaz. Powerbank veya güç cihazı olabilir.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg"
+      ]
+    },
+    {
+      "name": "Telefon / taşınabilir ekran",
+      "category": "Bilgisayar",
+      "model": "Model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "3D yazıcı masasının önünde, kabloya bağlı siyah ekranlı cihaz.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Tek kart bilgisayar",
+      "category": "Elektronik",
+      "model": "Raspberry Pi; sürüm ve RAM teyit edilmeli",
+      "quantity": 3,
+      "unit": "adet",
+      "location": "",
+      "notes": "Aynı üç kart iki karede görünüyor; tekrar sayılmadı. Bir kartta soğutucu var.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "Çok portlu bağlantı / güç dağıtım kartı",
+      "category": "Elektronik",
+      "model": "Yeşil PCB; işlev ve model okunmuyor",
+      "quantity": 2,
+      "unit": "adet",
+      "location": "",
+      "notes": "Biri önde XT60 girişli, diğeri arkada; siyah çoklu soketli iki ayrı kart.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "Şerit kablolu küçük kart / kamera modülü",
+      "category": "Elektronik",
+      "model": "Model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Raspberry Pi kartlarının solunda duran şerit kablolu küçük PCB.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg"
+      ]
+    },
+    {
+      "name": "Mikrodenetleyici / küçük geliştirme kartları",
+      "category": "Elektronik",
+      "model": "Model okunmuyor",
+      "quantity": 2,
+      "unit": "adet",
+      "location": "",
+      "notes": "Mavi silikon mat üzerinde dronun solunda ve sağında iki ayrı küçük kart.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg"
+      ]
+    },
+    {
+      "name": "Paketli küçük elektronik kart",
+      "category": "Elektronik",
+      "model": "Antistatik / şeffaf poşetli; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Rafın sol arka köşesinde poşet içinde bir kart görünüyor.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg"
+      ]
+    },
+    {
+      "name": "Tek kart bilgisayar kutuları / muhafazaları",
+      "category": "Elektronik",
+      "model": "Siyah plastik; modele uyumu teyit edilmeli",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "",
+      "notes": "Raspberry Pi yanında ve arkasında açık muhafaza parçaları. Kapaklar ayrı cihaz olarak sayılmadı.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "Bar tipi kamera / sensör",
+      "category": "Görüntüleme",
+      "model": "PlayStation kamera tipinde; model teyit edilmeli",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Mavi mat üzerinde siyah silindirik bar kamera.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "İç mekân döner güvenlik kamerası",
+      "category": "Görüntüleme",
+      "model": "Tapo yazısı görünüyor; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Lehim masasının sağ ön köşesinde beyaz kamera.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg"
+      ]
+    },
+    {
+      "name": "Mikro whoop drone",
+      "category": "Drone / FPV",
+      "model": "Mavi kanallı gövde; model teyit edilmeli",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Dört motoru ve pervanesi takılı mikro drone. İç parçalar ayrıca sayılmadı.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg"
+      ]
+    },
+    {
+      "name": "FPV gözlük",
+      "category": "Drone / FPV",
+      "model": "HDZero",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Sol arkada beyaz gözlük; tam model okunmuyor.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5025.jpeg"
+      ]
+    },
+    {
+      "name": "FPV gözlük",
+      "category": "Drone / FPV",
+      "model": "DJI; tam model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Ortada gri FPV gözlük.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5025.jpeg"
+      ]
+    },
+    {
+      "name": "Radyo kumanda",
+      "category": "Drone / FPV",
+      "model": "RadioMaster; şeffaf gövde",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Ön solda şeffaf RadioMaster. Tam model etiketi görünmüyor.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5025.jpeg"
+      ]
+    },
+    {
+      "name": "Ekranlı radyo kumanda",
+      "category": "Drone / FPV",
+      "model": "Siyah gövde; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Ön sağda mavi stick koruyuculu büyük kumanda.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5025.jpeg"
+      ]
+    },
+    {
+      "name": "Kompakt radyo kumanda",
+      "category": "Drone / FPV",
+      "model": "Siyah gövde; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "3D yazıcı masasının arka ortasında. 5025'teki kumandalarla aynı olup olmadığı teyit edilmeli.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "FPV görüntüleme monitörü",
+      "category": "Drone / FPV",
+      "model": "HDZero",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Lehim masasının sol önünde beyaz ekran.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg"
+      ]
+    },
+    {
+      "name": "FPV anten",
+      "category": "Drone / FPV",
+      "model": "Kırmızı gövdeli; marka okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Rafın solunda kırmızı anten. Gözlüklere takılı antenler ayrıca sayılmadı.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "Kumanda stick koruyucuları",
+      "category": "Drone / FPV",
+      "model": "Mavi / siyah, plastik baskı",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "",
+      "notes": "Kumandaya takılı ve masada duran koruyucular toplu kaydedildi.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5025.jpeg"
+      ]
+    },
+    {
+      "name": "Yedek mikro whoop gövdeleri",
+      "category": "Drone yedekleri",
+      "model": "Mavi, beyaz ve siyah plastik gövdeler",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "",
+      "notes": "Bir rafta üst üste açık gövdeler, alt rafta blisterli gövdeler var. Net parça adedi sayılmalı.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5022.jpeg",
+        "IMG_5023.jpeg"
+      ]
+    },
+    {
+      "name": "Yedek drone pervaneleri",
+      "category": "Drone yedekleri",
+      "model": "GEP RC poşetleri; kırmızı / turuncu / açık renk",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "",
+      "notes": "Poşetlerde ve rafta üç kanatlı pervaneler. Çap, yön ve paket içi adet görünmüyor.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5023.jpeg"
+      ]
+    },
+    {
+      "name": "Drone montaj / yedek aksesuar paketi",
+      "category": "Drone yedekleri",
+      "model": "Model okunmuyor",
+      "quantity": 1,
+      "unit": "paket",
+      "location": "",
+      "notes": "Raf önündeki şeffaf poşette beyaz plastik parçalar ve anten benzeri aksesuarlar.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5023.jpeg"
+      ]
+    },
+    {
+      "name": "Drone LiPo bataryası",
+      "category": "Güç / batarya",
+      "model": "Siyah paket, XT60 bağlantı; kapasite okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Lehim masasının sağ tarafında görünen batarya.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg"
+      ]
+    },
+    {
+      "name": "İnce mikro drone bataryaları",
+      "category": "Güç / batarya",
+      "model": "Kapasite / hücre sayısı okunmuyor",
+      "quantity": 5,
+      "unit": "adet",
+      "location": "",
+      "notes": "3D yazıcı masasının sol arka kısmında açıkça seçilen beş ince batarya. Metalik paketlerin etiketleri teyit edilmeli.",
+      "verification_note": "Asgari sayım",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Mavi paketli batarya",
+      "category": "Güç / batarya",
+      "model": "Model / kapasite okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Pencere önündeki masanın solunda mavi paket ve güç kablosu.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg"
+      ]
+    },
+    {
+      "name": "Çift kanallı batarya şarj cihazı",
+      "category": "Güç / batarya",
+      "model": "HOTA; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "3D yazıcı masasının ön solunda, iki sarı çıkış soketli şarj cihazı.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Çok portlu mikro batarya şarj cihazı",
+      "category": "Güç / batarya",
+      "model": "Gri / siyah gövde; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masanın ön orta kısmındaki çok çıkışlı küçük şarj cihazı.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Batarya ölçüm / şarj cihazı",
+      "category": "Güç / batarya",
+      "model": "Kırmızı gövde; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masanın arka solunda ekranlı kırmızı cihaz. İşlevi sahada teyit edilmeli.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Metal kasalı güç cihazı",
+      "category": "Güç / batarya",
+      "model": "Gri gövde, havalandırma; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Beyaz dolabın üst rafının sağındaki cihaz. Güç kaynağı / şarj ünitesi tipi teyit edilmeli.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "Kalın güç kablosu",
+      "category": "Güç / batarya",
+      "model": "Kırmızı / siyah, XT60 tipinde uç",
+      "quantity": 1,
+      "unit": "takım",
+      "location": "",
+      "notes": "Metal güç cihazının üzerinde sarılı kablo takımı.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "USB / güç / bağlantı kabloları",
+      "category": "Güç / batarya",
+      "model": "Çeşitli",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "",
+      "notes": "Bağımsız kablolar toplu kaydedildi. Cihazların sabit kabloları ayrıca sayılmadı.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg",
+        "IMG_5021.jpeg",
+        "IMG_5028.jpeg",
+        "IMG_5029.jpeg"
+      ]
+    },
+    {
+      "name": "Çoklu priz / masa içi priz ünitesi",
+      "category": "Güç / batarya",
+      "model": "Siyah masa ünitesi ve beyaz uzatma prizleri",
+      "quantity": 4,
+      "unit": "adet",
+      "location": "",
+      "notes": "Lehim masasında 1, yazıcı masasında 1, bilgisayar masalarının altında 2 seçiliyor. 5018 ve 5019 aynı ünite kabul edildi.",
+      "verification_note": "Asgari sayım",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg",
+        "IMG_5028.jpeg",
+        "IMG_5029.jpeg"
+      ]
+    },
+    {
+      "name": "Ekranlı dijital mikroskop",
+      "category": "Lehim / atölye",
+      "model": "Model okunmuyor; metal standlı",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "İki karedeki aynı mikroskop tek kaydedildi.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Lehim ve sıcak hava istasyonu",
+      "category": "Lehim / atölye",
+      "model": "KRAFTOOL; model etiketi teyit edilmeli",
+      "quantity": 1,
+      "unit": "takım",
+      "location": "",
+      "notes": "İstasyon, havya, sıcak hava kolu ve havya standı birlikte kaydedildi.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Beyaz gövdeli elektrikli el cihazı",
+      "category": "Lehim / atölye",
+      "model": "Marka / model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masanın arka ortasında metal ağızlı cihaz. Sıcak hava / üfleme cihazı olabilir; kesin işlev teyit edilmeli.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg"
+      ]
+    },
+    {
+      "name": "Masaüstü duman emici",
+      "category": "Lehim / atölye",
+      "model": "Siyah gövde ve stand",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masanın arka kısmındaki filtreli duman emici.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Elektronik ölçüm / test cihazı",
+      "category": "Lehim / atölye",
+      "model": "Beyaz gövde, ekran ve çıkış soketleri",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Mikroskobun sağında küçük masaüstü cihaz. Etiket ve işlev okunmuyor.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Silikon lehimleme matı",
+      "category": "Lehim / atölye",
+      "model": "Mavi, bölmeli",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "İki karedeki aynı mat tek kaydedildi.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Kablo soyma / sıkma el aleti",
+      "category": "Lehim / atölye",
+      "model": "Mavi / siyah saplı",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "İki karede farklı açıdan görünen aynı el aleti kabul edildi.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Lehim sökme pompası",
+      "category": "Lehim / atölye",
+      "model": "Metal gövde, kırmızı uç",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Mavi matın üst solunda.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg"
+      ]
+    },
+    {
+      "name": "Tornavida / hassas el aletleri",
+      "category": "Lehim / atölye",
+      "model": "Kırmızı / siyah sap ve metal uçlar",
+      "quantity": 1,
+      "unit": "takım",
+      "location": "",
+      "notes": "Tornavida, cımbız ve uçlar toplu kaydedildi.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Sıcak hava yedek nozul uçları",
+      "category": "Lehim / atölye",
+      "model": "Metal, farklı ağız biçimleri",
+      "quantity": 1,
+      "unit": "takım",
+      "location": "",
+      "notes": "Pervanelerin arasında görünen metal uçlar. Nozul tipi ve parça adedi teyit edilmeli.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5023.jpeg"
+      ]
+    },
+    {
+      "name": "Lehim sarf malzemeleri",
+      "category": "Lehim / atölye",
+      "model": "Lehim teli, akı / yapıştırıcı, bant, uç temizleyici",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "",
+      "notes": "Küçük ve düşük bedelli sarflar tek tek sayılmadı; birlikte kaydedildi.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Açık gövdeli 3D yazıcı",
+      "category": "3D baskı",
+      "model": "Bambu Lab A1 ailesine benziyor; model teyit",
+      "quantity": 2,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masanın solunda ve sağında iki yazıcı. Soldaki yanında çoklu makara sistemi görünüyor.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Çoklu filament makara / besleme ünitesi",
+      "category": "3D baskı",
+      "model": "Bambu Lab AMS Lite tipinde; model teyit",
+      "quantity": 1,
+      "unit": "takım",
+      "location": "",
+      "notes": "Sol yazıcının yanındaki makaralı ünite. Yazıcıya bağlı makaralar bu takım içinde kaydedildi.",
+      "verification_note": "Tür / model",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Açık filament makarası",
+      "category": "3D baskı",
+      "model": "Siyah filament; malzeme ve kalan miktar okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Masanın ön solunda bağımsız duran makara. Yazıcılara takılı makaralar ayrıca sayılmadı.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "3D baskı parçaları / çalışma örnekleri",
+      "category": "3D baskı",
+      "model": "Siyah dikdörtgen baskı ve plastik aksesuarlar",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "",
+      "notes": "Yazıcı masasındaki baskı örnekleri. Kumanda koruyucuları kendi kaydında yer alıyor.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Sert taşıma çantası",
+      "category": "Taşıma / saklama",
+      "model": "Siyah, fermuarlı",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Beyaz dolapta büyük sert çanta. İçindeki ekipman görünmüyor.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5023.jpeg"
+      ]
+    },
+    {
+      "name": "Yuvarlak / oval taşıma çantaları",
+      "category": "Taşıma / saklama",
+      "model": "Gri, fermuarlı",
+      "quantity": 8,
+      "unit": "adet",
+      "location": "",
+      "notes": "Arka siyah rafta iki sütunda en az sekiz çanta. İçerikleri görünmüyor.",
+      "verification_note": "Asgari sayım",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Büzgülü ekipman çantası",
+      "category": "Taşıma / saklama",
+      "model": "HDZero",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Beyaz dolabın sağ alt rafında. İçindekiler görünmüyor.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5024.jpeg"
+      ]
+    },
+    {
+      "name": "Yumuşak ekipman çantası / sırt çantası",
+      "category": "Taşıma / saklama",
+      "model": "Siyah; model okunmuyor",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Kanepenin sağında çanta ve üstünde koyu kumaş. İçerik görünmüyor.",
+      "verification_note": "Adet / içerik",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Bilgisayar çalışma masası",
+      "category": "Mobilya",
+      "model": "Beyaz tabla, siyah metal ayak",
+      "quantity": 5,
+      "unit": "adet",
+      "location": "",
+      "notes": "Duvar sırasında dört çift istasyonlu masa, pencere önünde bir masa olarak yorumlandı; tabla birleşimleri teyit edilmeli.",
+      "verification_note": "Alan eşleşmesi",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg",
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "3D yazıcı çalışma masası",
+      "category": "Mobilya",
+      "model": "Beyaz tabla, metal ayak",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "İki yazıcının bulunduğu geniş masa.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Lehim / elektronik çalışma tezgâhı",
+      "category": "Mobilya",
+      "model": "Ahşap tabla, metal ayak",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "İki karedeki aynı çalışma tezgâhı kabul edildi.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Tekerlekli çalışma sandalyesi",
+      "category": "Mobilya",
+      "model": "Beyaz oturak, beş kollu ayak",
+      "quantity": 7,
+      "unit": "adet",
+      "location": "",
+      "notes": "Duvar sırasında 6, pencere önünde 1 sandalye. Aynı sandalyelerin taşınmadığı teyit edilmeli.",
+      "verification_note": "Alan eşleşmesi",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5029.jpeg",
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "Kanepe",
+      "category": "Mobilya",
+      "model": "Açık renk döşemeli",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "3D yazıcı masasının arkasında.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Metal raflı dolap",
+      "category": "Mobilya",
+      "model": "Beyaz",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Dört kare aynı dolabın farklı raflarını gösteriyor; tek dolap kaydedildi.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg",
+        "IMG_5023.jpeg",
+        "IMG_5024.jpeg"
+      ]
+    },
+    {
+      "name": "Açık metal raf ünitesi",
+      "category": "Mobilya",
+      "model": "Siyah",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "FPV ekipmanları ve gri çantaların bulunduğu raf aynı ünite kabul edildi.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5025.jpeg",
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Delikli alet panosu",
+      "category": "Mobilya",
+      "model": "Siyah",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Lehim tezgâhının arkasında.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5018.jpeg",
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Tezgâh LED aydınlatması",
+      "category": "Mobilya",
+      "model": "Uzun beyaz armatür",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Delikli panonun üstünde.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5019.jpeg"
+      ]
+    },
+    {
+      "name": "Ayak dayama platformu",
+      "category": "Mobilya",
+      "model": "Eğimli platform, metal destek",
+      "quantity": 4,
+      "unit": "adet",
+      "location": "",
+      "notes": "Yazıcı masası altında 2, duvar sırasının altında açıkça seçilen 2 platform.",
+      "verification_note": "Asgari sayım",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5028.jpeg",
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "Küçük çöp kutusu",
+      "category": "Mobilya",
+      "model": "Siyah",
+      "quantity": 1,
+      "unit": "adet",
+      "location": "",
+      "notes": "Duvar sırasının sol ucunda yerde. Diğer siyah kutuların tipi açık değil.",
+      "verification_note": "Görünen",
+      "verified": false,
+      "is_package": false,
+      "sources": [
+        "IMG_5030.jpeg"
+      ]
+    },
+    {
+      "name": "FOXEER etiketli büyük kutular",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 5,
+      "unit": "kutu",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "Solda 2, sağda 3 kutu. Drone veya ekipman içeriği açılarak sayılmalı; 5 drone olarak kaydedilmedi.",
+      "verification_note": "Kapalı / içeriği görünmeyen",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "3D baskı filament kutuları",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 8,
+      "unit": "kutu",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "3 sol + 3 orta + 1 sağ arka + 1 dik kutu. Bir etiket Bambu Lab PLA Basic. Makara adedi, tür ve doluluk kontrol edilmeli.",
+      "verification_note": "Kapalı / içeriği görünmeyen",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5024.jpeg"
+      ]
+    },
+    {
+      "name": "Tattu R-Line batarya kutuları",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 2,
+      "unit": "kutu",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "Önde iki sarı kutu; en az biri açık. Etikette 1600 mAh / 6S işareti görünüyor. Batarya varlığı ve adedi teyit edilmeli.",
+      "verification_note": "Kapalı / içeriği görünmeyen",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5024.jpeg"
+      ]
+    },
+    {
+      "name": "SpeedyBee uçuş kontrol stack kutusu",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 1,
+      "unit": "kutu",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "Etiket F405 V4 / 55A stack tipinde görünüyor; kesin model ve içerik kontrol edilmeli. Fiziksel stack görünmüyor.",
+      "verification_note": "Kapalı / içeriği görünmeyen",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5021.jpeg"
+      ]
+    },
+    {
+      "name": "HOTA şarj cihazı kutusu",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 1,
+      "unit": "kutu",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "Büyük yeşil kutu. 5028'deki HOTA cihazının ambalajı olabilir; ayrıca şarj cihazı eklenmedi.",
+      "verification_note": "Tekrar sayım riski",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5021.jpeg",
+        "IMG_5022.jpeg"
+      ]
+    },
+    {
+      "name": "Arka raftaki siyah ürün kutuları",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "Birden fazla kutu görünüyor. Etiket, adet ve içerik net değil; kutuların içindeki cihazlar stok olarak sayılmadı.",
+      "verification_note": "Kapalı / içeriği görünmeyen",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Yazıcı masasındaki açık ürün kutusu",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 1,
+      "unit": "kutu",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "Pembe / kırmızı etiketli paketler görünüyor. Ürün türü ve paket içi adet okunmuyor.",
+      "verification_note": "Kapalı / içeriği görünmeyen",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    },
+    {
+      "name": "Raftaki düz poşet / ürün paketleri",
+      "category": "Kutu / paket kontrolü",
+      "model": "",
+      "quantity": 1,
+      "unit": "grup",
+      "location": "Fotoğraftaki raf / masa",
+      "notes": "Siyah rafın orta seviyesindeki düz paketlerin içeriği fotoğraftan belirlenemiyor.",
+      "verification_note": "Kapalı / içeriği görünmeyen",
+      "verified": false,
+      "is_package": true,
+      "sources": [
+        "IMG_5028.jpeg"
+      ]
+    }
+  ]
+}
