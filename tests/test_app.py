@@ -248,7 +248,29 @@ class HttpTests(unittest.TestCase):
         status, _, _ = self.request('/api/items', body(), headers)
         self.assertEqual(status, 403)
         status, _, _ = self.request('/api/items', body(name='HTTP kaydı'), {'X-App-Token': self.server.token, 'Origin': self.base})
+        self.assertEqual(status, 403)
+        status, raw, _ = self.request('/api/items', body(name='HTTP kaydı'), {'X-App-Token': self.server.token, 'Origin': self.base, 'X-Admin-Key': 'ashyqaspan'})
         self.assertEqual(status, 201)
+        self.assertNotIn(b'ashyqaspan', self.request('/api/items', body(name='X'), {'X-App-Token': self.server.token, 'X-Admin-Key': 'wrong'})[1])
+
+    def test_cors_for_allowed_origin_only(self):
+        self.server.allowed_origins = {'https://huzarh.github.io'}
+        self.server.public_hosts = {'pc4.example.ts.net'}
+        try:
+            ok = {'Origin': 'https://huzarh.github.io'}
+            status, _, headers = self.request('/api/items', headers=dict(ok, **{'Access-Control-Request-Method': 'POST'}), method='OPTIONS')
+            self.assertEqual(status, 204)
+            self.assertEqual(headers['Access-Control-Allow-Origin'], 'https://huzarh.github.io')
+            self.assertIn('X-Admin-Key', headers['Access-Control-Allow-Headers'])
+            self.assertEqual(self.request('/api/items', headers={'Origin': 'https://evil.invalid'}, method='OPTIONS')[0], 403)
+            status, _, headers = self.request('/api/bootstrap', headers=dict(ok, Host='pc4.example.ts.net'))
+            self.assertEqual(status, 200)
+            self.assertEqual(headers['Access-Control-Allow-Origin'], 'https://huzarh.github.io')
+            self.assertIsNone(self.request('/api/bootstrap', headers={'Origin': 'https://evil.invalid'})[2]['Access-Control-Allow-Origin'])
+            h = dict(ok, **{'X-App-Token': self.server.token, 'X-Admin-Key': 'ashyqaspan'})
+            self.assertEqual(self.request('/api/items', body(name='CORS kaydı'), h)[0], 201)
+        finally:
+            self.server.allowed_origins = set(); self.server.public_hosts = set()
 
     def test_host_and_file_traversal_guards(self):
         self.assertEqual(self.request('/api/bootstrap', headers={'Host': 'evil.invalid'})[0], 403)
@@ -272,7 +294,7 @@ class HttpTests(unittest.TestCase):
     def test_admin_key_edit_and_delete(self):
         base_h = {'X-App-Token': self.server.token, 'Origin': self.base}
         auth_h = dict(base_h, **{'X-Admin-Key': 'ashyqaspan'})
-        status, raw, _ = self.request('/api/items', body(name='Silinecek Test'), base_h)
+        status, raw, _ = self.request('/api/items', body(name='Silinecek Test'), auth_h)
         self.assertEqual(status, 201)
         created = json.loads(raw)
         # Edit without admin key fails with 403

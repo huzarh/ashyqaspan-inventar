@@ -12,6 +12,7 @@ import re
 import secrets
 import sqlite3
 import threading
+import time
 import unicodedata
 import uuid
 import webbrowser
@@ -31,6 +32,7 @@ MAX_BACKUP = 120 * 1024 * 1024
 PHOTO_RE = re.compile(r'^[a-f0-9]{64}\.(jpg|png|webp)$')
 SOURCE_RE = re.compile(r'^IMG_[0-9]{4}\.jpeg$')
 ADMIN_KEY = os.environ.get('ATOLYE_ADMIN_KEY', 'ashyqaspan')
+CORS_HEADERS = 'Content-Type, X-App-Token, X-Admin-Key, X-Confirm-Restore'
 
 
 class Problem(Exception):
@@ -530,17 +532,44 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Frame-Options', 'DENY')
         self.send_header('Referrer-Policy', 'no-referrer')
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+        self.cors_headers()
         if filename:
             self.send_header('Content-Disposition', 'attachment; filename="'+filename+'"')
         self.end_headers()
         self.wfile.write(body)
 
+    def allowed_origin(self):
+        origin = self.headers.get('Origin')
+        return origin if origin and origin in self.server.allowed_origins else None
+
+    def cors_headers(self):
+        origin = self.allowed_origin()
+        if origin:
+            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Access-Control-Expose-Headers', 'Content-Disposition')
+            self.send_header('Vary', 'Origin')
+
     def valid_host(self):
         host = self.headers.get('Host', '')
         port = str(self.server.server_address[1])
         lan_re = r'^(127\.0\.0\.1|localhost|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.[0-9]{1,3}\.[0-9]{1,3}):' + re.escape(port) + r'$'
-        if host not in self.server.allowed_hosts and not re.match(lan_re, host):
+        if host not in self.server.allowed_hosts and host.split(':')[0] not in self.server.public_hosts and not re.match(lan_re, host):
             raise Problem('Bu sunucu yalnızca yerel ağda kullanılabilir.', 403)
+
+    def do_OPTIONS(self):
+        try:
+            self.valid_host()
+            if not self.allowed_origin():
+                raise Problem('Geçersiz istek kaynağı.', 403)
+            self.send_response(204)
+            self.cors_headers()
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE')
+            self.send_header('Access-Control-Allow-Headers', CORS_HEADERS)
+            self.send_header('Access-Control-Max-Age', '600')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+        except Problem as exc:
+            self.reply(exc.status, {'error': exc.message})
 
     def do_GET(self):
         try:
@@ -595,14 +624,16 @@ class Handler(BaseHTTPRequestHandler):
 
     def check_admin(self, body=None):
         provided = (self.headers.get('X-Admin-Key') or (body or {}).get('admin_key') or '').strip()
-        if not provided or not secrets.compare_digest(provided.lower(), ADMIN_KEY.lower()):
-            raise Problem('Рұқсат кілті қате! / Неверный ключ доступа! (ashyqaspan)', 403, auth_required=True)
+        if not provided or not secrets.compare_digest(provided.lower().encode(), ADMIN_KEY.lower().encode()):
+            time.sleep(1)  # slows down key guessing on the public endpoint
+            raise Problem('Рұқсат кілті қате! / Неверный ключ доступа!', 403, auth_required=True)
 
     def mutate(self):
         try:
             self.valid_host()
             origin = self.headers.get('Origin')
-            if origin and origin != 'http://'+self.headers.get('Host', ''):
+            host = self.headers.get('Host', '')
+            if origin and origin not in ('http://'+host, 'https://'+host) and not self.allowed_origin():
                 raise Problem('Geçersiz istek kaynağı.', 403)
             if not secrets.compare_digest(self.headers.get('X-App-Token', ''), self.server.token):
                 raise Problem('Oturumu yenileyip tekrar deneyin.', 403)
@@ -633,6 +664,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, {'ok': True})
             store = self.server.store
             if path == '/api/items' and self.command == 'POST':
+                self.check_admin(body)
                 return self.reply(201, store.create(body))
             match = re.fullmatch('/api/items/([0-9]+)(/movements)?', path)
             if match:
@@ -659,14 +691,20 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(500, {'error': 'İşlem kaydedilemedi. Terminal kaydını kontrol edin.'})
 
 
-def make_server(store, port, host='0.0.0.0'):
+def make_server(store, port, host='0.0.0.0', public_hosts=(), allowed_origins=()):
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
     server.store = store
     server.token = secrets.token_urlsafe(32)
     actual_port = server.server_address[1]
     server.allowed_hosts = {'127.0.0.1:'+str(actual_port), 'localhost:'+str(actual_port)}
+    server.public_hosts = {h.strip().lower() for h in public_hosts if h.strip()}
+    server.allowed_origins = {o.strip().rstrip('/') for o in allowed_origins if o.strip()}
     return server
+
+
+def env_list(name):
+    return [v for v in os.environ.get(name, '').split(',') if v.strip()]
 
 
 def main():
@@ -675,11 +713,15 @@ def main():
     parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--data-dir', type=Path, default=ROOT/'data')
     parser.add_argument('--no-browser', action='store_true')
+    parser.add_argument('--public-host', action='append', default=env_list('ATOLYE_PUBLIC_HOSTS'),
+                        help='Ters proxy / tünel alan adı (ör. pc4-ubuntu.xxx.ts.net)')
+    parser.add_argument('--allow-origin', action='append', default=env_list('ATOLYE_ALLOW_ORIGINS'),
+                        help='API çağrısına izin verilen site (ör. https://huzarh.github.io)')
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
     try:
         store = Store(args.data_dir)
-        server = make_server(store, args.port, args.host)
+        server = make_server(store, args.port, args.host, args.public_host, args.allow_origin)
     except (OSError, sqlite3.Error) as exc:
         print('Başlatılamadı:', exc)
         print('Port doluysa: python3 app.py --port 8766')
