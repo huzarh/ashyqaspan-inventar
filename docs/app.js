@@ -758,7 +758,7 @@ const NEED_PRIORITIES = ['urgent', 'high', 'normal', 'low'];
 const NEED_STATUSES = ['new', 'approved', 'ordered', 'bought', 'rejected'];
 const NEED_OPEN = ['new', 'approved', 'ordered'];
 const NEED_TEXT = {
-  kz: {nav:'Сатып алу', page:['Сатып алу', 'Сатып алу тізімі', 'Шеберханаға не керек, қаншалықты шұғыл және қай жобаға — бәрі бір жерде.', ''],
+  kz: {nav:'Қажетті заттар', page:['Қажетті заттар', 'Қажетті заттар тізімі', 'Шеберханаға не керек, қаншалықты шұғыл және қай жобаға — бәрі бір жерде.', ''],
     add:'Қажеттілік қосу', edit:'Қажеттілікті өзгерту', newTitle:'Жаңа қажеттілік', name:'Не керек?', namePh:'Мысалы: PLA филамент 1 кг, ақ',
     qty:'Саны', unit:'Бірлік', priority:'Шұғылдығы', project:'Қай жобаға?', projectPh:'Мысалы: FPV дрон, Робот-қол, Сабақ',
     reason:'Не үшін керек?', reasonPh:'Қысқаша түсіндіріңіз: не істейміз, неге қазір керек…', price:'Бір данасының бағасы (₸)', link:'Сатып алу сілтемесі',
@@ -771,7 +771,7 @@ const NEED_TEXT = {
     pri:{urgent:'Шұғыл', high:'Жоғары', normal:'Қалыпты', low:'Төмен'},
     priHint:{urgent:'жұмыс тоқтап тұр', high:'осы аптада', normal:'жоспар бойынша', low:'кейін болса да болады'},
     st:{new:'Жаңа', approved:'Мақұлданды', ordered:'Тапсырыс берілді', bought:'Сатып алынды', rejected:'Бас тартылды'}},
-  ru: {nav:'Закупки', page:['Закупки', 'Список закупок', 'Что нужно мастерской, насколько срочно и для какого проекта — всё в одном месте.', ''],
+  ru: {nav:'Необходимые вещи', page:['Необходимые вещи', 'Список необходимых вещей', 'Что нужно мастерской, насколько срочно и для какого проекта — всё в одном месте.', ''],
     add:'Добавить потребность', edit:'Изменить потребность', newTitle:'Новая потребность', name:'Что нужно?', namePh:'Например: PLA филамент 1 кг, белый',
     qty:'Количество', unit:'Ед.', priority:'Срочность', project:'Для какого проекта?', projectPh:'Например: FPV дрон, Робот-рука, Урок',
     reason:'Зачем нужно?', reasonPh:'Коротко: что делаем и почему нужно сейчас…', price:'Цена за единицу (₸)', link:'Ссылка на покупку',
@@ -784,7 +784,7 @@ const NEED_TEXT = {
     pri:{urgent:'Срочно', high:'Высокая', normal:'Обычная', low:'Низкая'},
     priHint:{urgent:'работа стоит', high:'на этой неделе', normal:'по плану', low:'можно позже'},
     st:{new:'Новая', approved:'Одобрено', ordered:'Заказано', bought:'Куплено', rejected:'Отклонено'}},
-  tr: {nav:'Satın alma', page:['Satın alma', 'Satın alma listesi', 'Atölyenin neye ihtiyacı var, ne kadar acil, hangi proje için — hepsi tek yerde.', ''],
+  tr: {nav:'Gerekli malzemeler', page:['Gerekli malzemeler', 'Gerekli malzemeler listesi', 'Atölyenin neye ihtiyacı var, ne kadar acil, hangi proje için — hepsi tek yerde.', ''],
     add:'İhtiyaç ekle', edit:'İhtiyacı düzenle', newTitle:'Yeni ihtiyaç', name:'Ne lazım?', namePh:'Örn: PLA filament 1 kg, beyaz',
     qty:'Miktar', unit:'Birim', priority:'Aciliyet', project:'Hangi proje için?', projectPh:'Örn: FPV drone, Robot kol, Ders',
     reason:'Neden gerekli?', reasonPh:'Kısaca: ne yapacağız, neden şimdi lazım…', price:'Birim fiyat (₸)', link:'Satın alma linki',

@@ -627,13 +627,13 @@ def export_excel(store, lang='tr'):
             m_name, m_kind, m_unit, m_note = r['name'], r['kind'], r['unit'], r['note']
         history.append([r['id'], r['item_id'], m_name, m_kind, r['delta'], r['balance'], m_unit, m_note, r['created_at']])
     need_words = {
-        'kz': ('Сатып алу', ['№', 'Атауы', 'Саны', 'Бірлік', 'Шұғылдығы', 'Күйі', 'Жоба', 'Не үшін керек', 'Бағасы (₸)', 'Жалпы (₸)', 'Сілтеме', 'Кім сұрады', 'Күні'],
+        'kz': ('Қажетті заттар', ['№', 'Атауы', 'Саны', 'Бірлік', 'Шұғылдығы', 'Күйі', 'Жоба', 'Не үшін керек', 'Бағасы (₸)', 'Жалпы (₸)', 'Сілтеме', 'Кім сұрады', 'Күні'],
                dict(urgent='Шұғыл', high='Жоғары', normal='Қалыпты', low='Төмен'),
                dict(new='Жаңа', approved='Мақұлданды', ordered='Тапсырыс берілді', bought='Сатып алынды', rejected='Бас тартылды')),
-        'ru': ('Закупки', ['№', 'Название', 'Кол-во', 'Ед.', 'Срочность', 'Статус', 'Проект', 'Зачем нужно', 'Цена (₸)', 'Сумма (₸)', 'Ссылка', 'Кто запросил', 'Дата'],
+        'ru': ('Необходимые вещи', ['№', 'Название', 'Кол-во', 'Ед.', 'Срочность', 'Статус', 'Проект', 'Зачем нужно', 'Цена (₸)', 'Сумма (₸)', 'Ссылка', 'Кто запросил', 'Дата'],
                dict(urgent='Срочно', high='Высокая', normal='Обычная', low='Низкая'),
                dict(new='Новая', approved='Одобрено', ordered='Заказано', bought='Куплено', rejected='Отклонено')),
-        'tr': ('Satın alma', ['No', 'Ad', 'Miktar', 'Birim', 'Aciliyet', 'Durum', 'Proje', 'Neden gerekli', 'Fiyat (₸)', 'Toplam (₸)', 'Link', 'İsteyen', 'Tarih'],
+        'tr': ('Gerekli malzemeler', ['No', 'Ad', 'Miktar', 'Birim', 'Aciliyet', 'Durum', 'Proje', 'Neden gerekli', 'Fiyat (₸)', 'Toplam (₸)', 'Link', 'İsteyen', 'Tarih'],
                dict(urgent='Acil', high='Yüksek', normal='Normal', low='Düşük'),
                dict(new='Yeni', approved='Onaylandı', ordered='Sipariş verildi', bought='Alındı', rejected='Reddedildi')),
     }
