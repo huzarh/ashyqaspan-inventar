@@ -320,6 +320,8 @@ function applyLangUI() {
   setTxt('#nav-pkg-text', t.navPkg);
   setTxt('#nav-hist-text', t.navHist);
   setTxt('#nav-arch-text', t.navArch);
+  setTxt('#nav-cam-text', t.navCam);
+  setTxt('#camera-title', t.camTitle);
   setTxt('#sidebar-note-title', t.sideTitle);
   setTxt('#sidebar-note-desc', t.sideDesc);
   setTxt('#help-btn-text', t.helpBtn);
@@ -746,6 +748,61 @@ async function download(path, fallback, button) {
     toast(t.fileReadyToast);
   }catch(e){toast(e.message,true);}finally{button.disabled=false;}
 }
+Object.assign(UI.kz, {navCam:'Камералар', camTitle:'Шеберхана камералары', camAgo:'сек бұрын', camStale:'Камера жауап бермей тұр', camNone:'Камера табылмады', camOffline:'Камералар тек сервер қосулы кезде көрінеді', camConnecting:'Қосылуда…'});
+Object.assign(UI.ru, {navCam:'Камеры', camTitle:'Камеры мастерской', camAgo:'сек назад', camStale:'Камера не отвечает', camNone:'Камеры не найдены', camOffline:'Камеры доступны только при работающем сервере', camConnecting:'Подключение…'});
+Object.assign(UI.tr, {navCam:'Kameralar', camTitle:'Atölye kameraları', camAgo:'sn önce', camStale:'Kamera yanıt vermiyor', camNone:'Kamera bulunamadı', camOffline:'Kameralar yalnızca sunucu açıkken görünür', camConnecting:'Bağlanıyor…'});
+const CAMERA_REFRESH_MS = 4000;
+const camState = {timer:null, list:[], urls:{}, openedAt:0};
+function openCameras() {
+  const t = L();
+  if (state.staticMode) { toast(t.camOffline, true); return; }
+  requireAuth(async () => {
+    $('#camera-dialog').showModal();
+    camState.openedAt = Date.now();
+    try {
+      camState.list = await api('/api/cameras');
+    } catch (e) { toast(e.message, true); camState.list = []; }
+    $('#camera-grid').innerHTML = camState.list.length
+      ? camState.list.map(c => `<figure class="camera-tile" data-cam="${esc(c.id)}"><img alt="${esc(c.name)}"><figcaption><strong>${esc(c.name)}</strong><span class="camera-age"></span></figcaption></figure>`).join('')
+      : `<p class="muted">${esc(t.camNone)}</p>`;
+    startCameras();
+  });
+}
+function startCameras() {
+  stopCameras();
+  if (!camState.list.length) return;
+  const tick = async () => {
+    await Promise.all(camState.list.map(refreshCamera));
+    if ($('#camera-dialog').open && !document.hidden) camState.timer = setTimeout(tick, CAMERA_REFRESH_MS);
+  };
+  tick();
+}
+function stopCameras() {
+  clearTimeout(camState.timer);
+  camState.timer = null;
+}
+async function refreshCamera(cam) {
+  const tile = $(`.camera-tile[data-cam="${cam.id}"]`);
+  if (!tile) return;
+  const t = L();
+  const age = $('.camera-age', tile);
+  try {
+    const response = await fetch(API_BASE + '/api/cameras/' + encodeURIComponent(cam.id) + '.jpg', {cache:'no-store', headers:{'X-Admin-Key':state.adminKey}});
+    if (!response.ok) throw new Error(response.status === 403 ? 'auth' : 'http');
+    const url = URL.createObjectURL(await response.blob());
+    $('img', tile).src = url;
+    if (camState.urls[cam.id]) URL.revokeObjectURL(camState.urls[cam.id]);
+    camState.urls[cam.id] = url;
+    const secs = Number(response.headers.get('X-Frame-Age') || 0);
+    // the server only pulls video while someone watches, so the first frames after opening are old
+    const warming = secs > 30 && Date.now() - camState.openedAt < 25000;
+    age.textContent = warming ? t.camConnecting : secs > 30 ? t.camStale : secs + ' ' + t.camAgo;
+    tile.classList.toggle('stale', secs > 30 && !warming);
+  } catch (e) {
+    age.textContent = t.camStale;
+    tile.classList.add('stale');
+  }
+}
 async function restore(file) {
   if(!file)return;
   const t = L();
@@ -764,7 +821,10 @@ async function restore(file) {
 
 function events() {
   document.addEventListener('error', remoteImageFallback, true);
-  $$('.nav').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
+  $$('.nav[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
+  $('#camera-btn').addEventListener('click',openCameras);
+  $('#camera-dialog').addEventListener('close',stopCameras);
+  document.addEventListener('visibilitychange',()=>{if($('#camera-dialog').open)document.hidden?stopCameras():startCameras();});
   $$('.lang-btn').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
   $$('[data-stat]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.stat==='low'?'inventory':b.dataset.stat,b.dataset.stat==='low'?'low':'')));
   $('#add-btn').addEventListener('click',()=>openItem());$('#help-btn').addEventListener('click',()=>$('#help-dialog').showModal());

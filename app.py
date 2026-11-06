@@ -33,6 +33,7 @@ PHOTO_RE = re.compile(r'^[a-f0-9]{64}\.(jpg|png|webp)$')
 SOURCE_RE = re.compile(r'^IMG_[0-9]{4}\.jpeg$')
 ADMIN_KEY = os.environ.get('ATOLYE_ADMIN_KEY', 'ashyqaspan')
 CORS_HEADERS = 'Content-Type, X-App-Token, X-Admin-Key, X-Confirm-Restore'
+CAMERA_RE = re.compile(r'^cam[0-9]{1,2}$')
 
 
 class Problem(Exception):
@@ -533,6 +534,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Referrer-Policy', 'no-referrer')
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
         self.cors_headers()
+        for name, value in getattr(self, 'extra_headers', {}).items():
+            self.send_header(name, value)
+        self.extra_headers = {}
         if filename:
             self.send_header('Content-Disposition', 'attachment; filename="'+filename+'"')
         self.end_headers()
@@ -546,7 +550,7 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.allowed_origin()
         if origin:
             self.send_header('Access-Control-Allow-Origin', origin)
-            self.send_header('Access-Control-Expose-Headers', 'Content-Disposition')
+            self.send_header('Access-Control-Expose-Headers', 'Content-Disposition, X-Frame-Age')
             self.send_header('Vary', 'Origin')
 
     def valid_host(self):
@@ -586,6 +590,15 @@ class Handler(BaseHTTPRequestHandler):
                 lang = parse_qs(parsed.query).get('lang', ['tr'])[0]
                 prefix = {'kz': 'Sheberhana_Tizimdemesi_', 'ru': 'Masterskaya_Inventar_'}.get(lang, 'Atolye_Envanteri_')
                 return self.reply(200, export_excel(self.server.store, lang), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', prefix+datetime.now().strftime('%Y-%m-%d')+'.xlsx')
+            if path == '/api/cameras':
+                self.check_admin()
+                return self.reply(200, self.server.cameras.list())
+            match_cam = re.fullmatch(r'/api/cameras/([a-z0-9]+)\.jpg', path)
+            if match_cam:
+                self.check_admin()
+                frame, age = self.server.cameras.frame(match_cam.group(1))
+                self.extra_headers = {'X-Frame-Age': str(age)}
+                return self.reply(200, frame, 'image/jpeg')
             if path == '/api/backup.json':
                 payload = json.dumps(self.server.store.backup(), ensure_ascii=False).encode('utf-8')
                 if len(payload) > MAX_BACKUP:
@@ -691,7 +704,45 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(500, {'error': 'İşlem kaydedilemedi. Terminal kaydını kontrol edin.'})
 
 
-def make_server(store, port, host='0.0.0.0', public_hosts=(), allowed_origins=()):
+class Cameras:
+    """Serves the latest JPEG frame per camera, written by an external grabber (see deploy/atolye-cam@.service)."""
+
+    def __init__(self, directory=None, names=''):
+        self.directory = Path(directory) if directory else None
+        self.names = dict(part.split('=', 1) for part in names.split(',') if '=' in part)
+
+    def _wanted(self):
+        try:
+            (self.directory/'.wanted').touch()
+        except OSError:
+            pass
+
+    def list(self):
+        if not self.directory or not self.directory.is_dir():
+            return []
+        self._wanted()
+        cams =sorted(p.stem for p in self.directory.glob('cam*.jpg') if CAMERA_RE.fullmatch(p.stem))
+        return [{'id': c, 'name': self.names.get(c, c), 'age': self._age(self.directory/(c+'.jpg'))} for c in cams]
+
+    @staticmethod
+    def _age(file):
+        return max(0, int(time.time()-file.stat().st_mtime))
+
+    def frame(self, ident):
+        if not self.directory or not CAMERA_RE.fullmatch(ident):
+            raise Problem('Kamera bulunamadı.', 404)
+        self._wanted()
+        file = self.directory/(ident+'.jpg')
+        try:
+            data = file.read_bytes()
+        except OSError:
+            raise Problem('Kamera bulunamadı.', 404)
+        if not data.startswith(b'\xff\xd8'):
+            raise Problem('Kamera görüntüsü hazır değil.', 503)
+        return data, self._age(file)
+
+
+def make_server(store, port, host='0.0.0.0', public_hosts=(), allowed_origins=(), cameras=None):
     server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
     server.store = store
@@ -700,6 +751,7 @@ def make_server(store, port, host='0.0.0.0', public_hosts=(), allowed_origins=()
     server.allowed_hosts = {'127.0.0.1:'+str(actual_port), 'localhost:'+str(actual_port)}
     server.public_hosts = {h.strip().lower() for h in public_hosts if h.strip()}
     server.allowed_origins = {o.strip().rstrip('/') for o in allowed_origins if o.strip()}
+    server.cameras = cameras or Cameras()
     return server
 
 
@@ -721,7 +773,8 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
     try:
         store = Store(args.data_dir)
-        server = make_server(store, args.port, args.host, args.public_host, args.allow_origin)
+        cameras = Cameras(os.environ.get('ATOLYE_CAMERA_DIR'), os.environ.get('ATOLYE_CAMERA_NAMES', ''))
+        server = make_server(store, args.port, args.host, args.public_host, args.allow_origin, cameras)
     except (OSError, sqlite3.Error) as exc:
         print('Başlatılamadı:', exc)
         print('Port doluysa: python3 app.py --port 8766')

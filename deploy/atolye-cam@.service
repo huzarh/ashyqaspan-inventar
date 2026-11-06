@@ -1,0 +1,17 @@
+# Grabs a frame every 2 s from one RTSP camera into /var/lib/atolye-cam/<instance>.jpg for app.py,
+# only while the camera dialog is open (see atolye-cam-run.sh, installed as /usr/local/bin/atolye-cam-run).
+# Install: copy to /etc/systemd/system/, put URL=rtsp://user:pass@ip:554/stream2 into
+# /etc/atolye-cam/<instance>.env (chmod 600), then: systemctl enable --now atolye-cam@cam1
+[Unit]
+Description=Atolye camera frame grabber (%i)
+After=network-online.target
+
+[Service]
+User=ubuntu
+EnvironmentFile=/etc/atolye-cam/%i.env
+ExecStart=/usr/local/bin/atolye-cam-run %i
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

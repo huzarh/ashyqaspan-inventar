@@ -2,6 +2,7 @@ import base64
 import copy
 import io
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -271,6 +272,28 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(self.request('/api/items', body(name='CORS kaydı'), h)[0], 201)
         finally:
             self.server.allowed_origins = set(); self.server.public_hosts = set()
+
+    def test_camera_frames_require_admin_key(self):
+        cam_dir = os.path.join(self.temp.name, 'cams')
+        os.makedirs(cam_dir, exist_ok=True)
+        with open(os.path.join(cam_dir, 'cam1.jpg'), 'wb') as f:
+            f.write(b'\xff\xd8\xff\xe0fakejpeg')
+        self.server.cameras = app.Cameras(cam_dir, 'cam1=Шеберхана')
+        try:
+            self.assertEqual(self.request('/api/cameras')[0], 403)
+            self.assertEqual(self.request('/api/cameras/cam1.jpg')[0], 403)
+            status, raw, _ = self.request('/api/cameras', headers={'X-Admin-Key': 'ashyqaspan'})
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(raw)[0]['name'], 'Шеберхана')
+            status, raw, headers = self.request('/api/cameras/cam1.jpg', headers={'X-Admin-Key': 'ashyqaspan'})
+            self.assertEqual(status, 200)
+            self.assertTrue(raw.startswith(b'\xff\xd8'))
+            self.assertEqual(headers['Content-Type'], 'image/jpeg')
+            self.assertIsNotNone(headers['X-Frame-Age'])
+            self.assertEqual(self.request('/api/cameras/../app.jpg', headers={'X-Admin-Key': 'ashyqaspan'})[0], 404)
+            self.assertEqual(self.request('/api/cameras/cam9.jpg', headers={'X-Admin-Key': 'ashyqaspan'})[0], 404)
+        finally:
+            self.server.cameras = app.Cameras()
 
     def test_host_and_file_traversal_guards(self):
         self.assertEqual(self.request('/api/bootstrap', headers={'Host': 'evil.invalid'})[0], 403)

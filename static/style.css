@@ -2266,3 +2266,45 @@ body.busy {
 }
 
 
+
+.camera-dialog {
+  width: min(1180px, calc(100% - 32px));
+}
+
+.camera-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.camera-tile {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.camera-tile img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #111;
+}
+
+.camera-tile figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+}
+
+.camera-tile .camera-age {
+  color: var(--muted, #6b7280);
+}
+
+.camera-tile.stale .camera-age {
+  color: #b91c1c;
+}
