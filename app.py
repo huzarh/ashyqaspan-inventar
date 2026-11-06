@@ -4,6 +4,7 @@ import argparse
 import base64
 import binascii
 import hashlib
+import hmac
 import io
 import json
 import logging
@@ -14,6 +15,7 @@ import sqlite3
 import threading
 import time
 import unicodedata
+import urllib.request
 import uuid
 import webbrowser
 import zipfile
@@ -23,6 +25,8 @@ from decimal import Decimal, InvalidOperation
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
+import onvif_ptz
 from xml.sax.saxutils import escape
 
 ROOT = Path(__file__).resolve().parent
@@ -534,9 +538,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Referrer-Policy', 'no-referrer')
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'")
         self.cors_headers()
-        for name, value in getattr(self, 'extra_headers', {}).items():
-            self.send_header(name, value)
-        self.extra_headers = {}
         if filename:
             self.send_header('Content-Disposition', 'attachment; filename="'+filename+'"')
         self.end_headers()
@@ -550,7 +551,7 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.allowed_origin()
         if origin:
             self.send_header('Access-Control-Allow-Origin', origin)
-            self.send_header('Access-Control-Expose-Headers', 'Content-Disposition, X-Frame-Age')
+            self.send_header('Access-Control-Expose-Headers', 'Content-Disposition')
             self.send_header('Vary', 'Origin')
 
     def valid_host(self):
@@ -592,13 +593,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, export_excel(self.server.store, lang), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', prefix+datetime.now().strftime('%Y-%m-%d')+'.xlsx')
             if path == '/api/cameras':
                 self.check_admin()
-                return self.reply(200, self.server.cameras.list())
+                return self.reply(200, dict(self.server.cameras.capabilities(), cameras=self.server.cameras.list()))
+            match_live = re.fullmatch(r'/api/cameras/([a-z0-9]+)/live\.mp4', path)
+            if match_live:
+                query = parse_qs(parsed.query)
+                self.server.cameras.check_live_token(query.get('t', [''])[0])
+                return self.stream_live(match_live.group(1), query.get('q', ['low'])[0])
             match_cam = re.fullmatch(r'/api/cameras/([a-z0-9]+)\.jpg', path)
             if match_cam:
                 self.check_admin()
-                frame, age = self.server.cameras.frame(match_cam.group(1))
-                self.extra_headers = {'X-Frame-Age': str(age)}
-                return self.reply(200, frame, 'image/jpeg')
+                return self.reply(200, self.server.cameras.frame(match_cam.group(1)), 'image/jpeg')
             if path == '/api/backup.json':
                 payload = json.dumps(self.server.store.backup(), ensure_ascii=False).encode('utf-8')
                 if len(payload) > MAX_BACKUP:
@@ -625,6 +629,28 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             logging.exception('GET işlemi başarısız')
             self.reply(500, {'error': 'İşlem tamamlanamadı. Terminal kaydını kontrol edin.'})
+
+    def stream_live(self, ident, quality):
+        try:
+            upstream = self.server.cameras.live_source(ident, quality)
+        except OSError:
+            raise Problem('Canlı yayın sunucusuna ulaşılamadı.', 502)
+        with upstream:
+            self.send_response(200)
+            self.send_header('Content-Type', 'video/mp4')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('X-Content-Type-Options', 'nosniff')
+            self.cors_headers()
+            self.end_headers()
+            self.close_connection = True
+            try:
+                while True:
+                    chunk = upstream.read1(65536)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
 
     def do_POST(self):
         self.mutate()
@@ -672,6 +698,13 @@ class Handler(BaseHTTPRequestHandler):
                 raise Problem('Gönderilen veri okunamadı.')
             if not isinstance(body, dict):
                 raise Problem('Geçerli bir kayıt gönderin.')
+            if path == '/api/cameras/live-token' and self.command == 'POST':
+                self.check_admin(body)
+                return self.reply(200, self.server.cameras.live_token())
+            match_ptz = re.fullmatch(r'/api/cameras/([a-z0-9]+)/ptz', path)
+            if match_ptz and self.command == 'POST':
+                self.check_admin(body)
+                return self.reply(200, self.server.cameras.ptz(match_ptz.group(1), body.get('direction')))
             if path == '/api/auth' and self.command == 'POST':
                 self.check_admin(body)
                 return self.reply(200, {'ok': True})
@@ -705,41 +738,65 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class Cameras:
-    """Serves the latest JPEG frame per camera, written by an external grabber (see deploy/atolye-cam@.service)."""
+    """Camera access for the UI through a local go2rtc relay, which holds a single RTSP connection per camera
+    (Tapo cameras stall when several clients connect at once): JPEG frames, live fMP4 and ONVIF pan/tilt.
+    Live URLs carry a signed, expiring token because <video> cannot send the admin key header."""
+    LIVE_TOKEN_TTL = 4 * 3600
 
-    def __init__(self, directory=None, names=''):
-        self.directory = Path(directory) if directory else None
+    def __init__(self, names='', go2rtc='', onvif=''):
         self.names = dict(part.split('=', 1) for part in names.split(',') if '=' in part)
-
-    def _wanted(self):
-        try:
-            (self.directory/'.wanted').touch()
-        except OSError:
-            pass
+        self.go2rtc = go2rtc.rstrip('/')
+        self.onvif = {k: onvif_ptz.PTZCamera(v) for k, v in (p.split('=', 1) for p in onvif.split(',') if '=' in p)}
+        self.secret = secrets.token_bytes(32)
 
     def list(self):
-        if not self.directory or not self.directory.is_dir():
+        if not self.go2rtc:
             return []
-        self._wanted()
-        cams =sorted(p.stem for p in self.directory.glob('cam*.jpg') if CAMERA_RE.fullmatch(p.stem))
-        return [{'id': c, 'name': self.names.get(c, c), 'age': self._age(self.directory/(c+'.jpg'))} for c in cams]
+        return [{'id': c, 'name': name} for c, name in sorted(self.names.items()) if CAMERA_RE.fullmatch(c)]
 
-    @staticmethod
-    def _age(file):
-        return max(0, int(time.time()-file.stat().st_mtime))
+    def _source(self, ident):
+        if not self.go2rtc or not CAMERA_RE.fullmatch(ident) or ident not in self.names:
+            raise Problem('Kamera bulunamadı.', 404)
+        return ident
 
     def frame(self, ident):
-        if not self.directory or not CAMERA_RE.fullmatch(ident):
-            raise Problem('Kamera bulunamadı.', 404)
-        self._wanted()
-        file = self.directory/(ident+'.jpg')
+        src = self._source(ident)
         try:
-            data = file.read_bytes()
+            with urllib.request.urlopen('%s/api/frame.jpeg?src=%s' % (self.go2rtc, src), timeout=25) as r:
+                data = r.read()
         except OSError:
-            raise Problem('Kamera bulunamadı.', 404)
+            raise Problem('Kamera görüntüsü alınamadı.', 503)
         if not data.startswith(b'\xff\xd8'):
             raise Problem('Kamera görüntüsü hazır değil.', 503)
-        return data, self._age(file)
+        return data
+
+    def live_token(self):
+        expires = int(time.time()) + self.LIVE_TOKEN_TTL
+        sig = hmac.new(self.secret, str(expires).encode(), hashlib.sha256).hexdigest()[:32]
+        return {'token': '%d.%s' % (expires, sig), 'expires': expires}
+
+    def check_live_token(self, token):
+        expires, _, sig = (token or '').partition('.')
+        good = hmac.new(self.secret, expires.encode(), hashlib.sha256).hexdigest()[:32]
+        if not expires.isdigit() or int(expires) < time.time() or not hmac.compare_digest(sig, good):
+            raise Problem('Canlı yayın izni geçersiz veya süresi doldu.', 403)
+
+    def live_source(self, ident, quality):
+        src = self._source(ident) + ('_low' if quality == 'low' else '')
+        return urllib.request.urlopen('%s/api/stream.mp4?src=%s' % (self.go2rtc, src), timeout=30)
+
+    def ptz(self, ident, direction):
+        cam = self.onvif.get(ident)
+        if not cam:
+            raise Problem('Bu kamera döndürülemiyor.', 404)
+        try:
+            cam.move(direction)
+        except onvif_ptz.OnvifError as exc:
+            raise Problem(str(exc), 502)
+        return {'ok': True}
+
+    def capabilities(self):
+        return {'live': bool(self.go2rtc), 'ptz': sorted(self.onvif)}
 
 
 def make_server(store, port, host='0.0.0.0', public_hosts=(), allowed_origins=(), cameras=None):
@@ -773,7 +830,8 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
     try:
         store = Store(args.data_dir)
-        cameras = Cameras(os.environ.get('ATOLYE_CAMERA_DIR'), os.environ.get('ATOLYE_CAMERA_NAMES', ''))
+        cameras = Cameras(os.environ.get('ATOLYE_CAMERA_NAMES', ''), os.environ.get('ATOLYE_GO2RTC', ''),
+                          os.environ.get('ATOLYE_CAMERA_ONVIF', ''))
         server = make_server(store, args.port, args.host, args.public_host, args.allow_origin, cameras)
     except (OSError, sqlite3.Error) as exc:
         print('Başlatılamadı:', exc)

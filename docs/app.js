@@ -748,38 +748,111 @@ async function download(path, fallback, button) {
     toast(t.fileReadyToast);
   }catch(e){toast(e.message,true);}finally{button.disabled=false;}
 }
-Object.assign(UI.kz, {navCam:'Камералар', camTitle:'Шеберхана камералары', camAgo:'сек бұрын', camStale:'Камера жауап бермей тұр', camNone:'Камера табылмады', camOffline:'Камералар тек сервер қосулы кезде көрінеді', camConnecting:'Қосылуда…'});
-Object.assign(UI.ru, {navCam:'Камеры', camTitle:'Камеры мастерской', camAgo:'сек назад', camStale:'Камера не отвечает', camNone:'Камеры не найдены', camOffline:'Камеры доступны только при работающем сервере', camConnecting:'Подключение…'});
-Object.assign(UI.tr, {navCam:'Kameralar', camTitle:'Atölye kameraları', camAgo:'sn önce', camStale:'Kamera yanıt vermiyor', camNone:'Kamera bulunamadı', camOffline:'Kameralar yalnızca sunucu açıkken görünür', camConnecting:'Bağlanıyor…'});
+Object.assign(UI.kz, {navCam:'Камералар', camTitle:'Шеберхана камералары', camAgo:'сек бұрын', camStale:'Камера жауап бермей тұр', camNone:'Камера табылмады', camOffline:'Камералар тек сервер қосулы кезде көрінеді', camConnecting:'Қосылуда…', camLive:'Тікелей', camPhoto:'Сурет', camBoth:'Екеуі', camLow:'360p · жылдам', camHigh:'720p · сапалы', camBothHint:'Екі камера бірге баяулауы мүмкін — біреуін таңдаған жылдамырақ.'});
+Object.assign(UI.ru, {navCam:'Камеры', camTitle:'Камеры мастерской', camAgo:'сек назад', camStale:'Камера не отвечает', camNone:'Камеры не найдены', camOffline:'Камеры доступны только при работающем сервере', camConnecting:'Подключение…', camLive:'Онлайн', camPhoto:'Фото', camBoth:'Обе', camLow:'360p · быстро', camHigh:'720p · чётко', camBothHint:'Две камеры сразу могут тормозить — одна работает быстрее.'});
+Object.assign(UI.tr, {navCam:'Kameralar', camTitle:'Atölye kameraları', camAgo:'sn önce', camStale:'Kamera yanıt vermiyor', camNone:'Kamera bulunamadı', camOffline:'Kameralar yalnızca sunucu açıkken görünür', camConnecting:'Bağlanıyor…', camLive:'Canlı', camPhoto:'Fotoğraf', camBoth:'İkisi', camLow:'360p · hızlı', camHigh:'720p · net', camBothHint:'İki kamera birlikte yavaşlayabilir — tek kamera daha akıcıdır.'});
 const CAMERA_REFRESH_MS = 4000;
-const camState = {timer:null, list:[], urls:{}, openedAt:0};
+const pref = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch (_) { return fallback; } };
+const camState = {timer:null, chase:null, list:[], caps:{live:false, ptz:[]}, urls:{}, token:null,
+  view:pref('atolye-cam-view', ''), mode:pref('atolye-cam-mode', 'live'), quality:pref('atolye-cam-q', 'low')};
 function openCameras() {
   const t = L();
   if (state.staticMode) { toast(t.camOffline, true); return; }
   requireAuth(async () => {
     $('#camera-dialog').showModal();
-    camState.openedAt = Date.now();
     try {
-      camState.list = await api('/api/cameras');
+      const data = await api('/api/cameras');
+      camState.list = data.cameras || [];
+      camState.caps = {live:Boolean(data.live), ptz:data.ptz || []};
     } catch (e) { toast(e.message, true); camState.list = []; }
-    $('#camera-grid').innerHTML = camState.list.length
-      ? camState.list.map(c => `<figure class="camera-tile" data-cam="${esc(c.id)}"><img alt="${esc(c.name)}"><figcaption><strong>${esc(c.name)}</strong><span class="camera-age"></span></figcaption></figure>`).join('')
-      : `<p class="muted">${esc(t.camNone)}</p>`;
-    startCameras();
+    if (!camState.list.some(c => c.id === camState.view) && camState.view !== 'all') camState.view = camState.list[0]?.id || '';
+    if (!camState.caps.live) camState.mode = 'photo';
+    renderCameras();
   });
 }
-function startCameras() {
+function cameraToolbar() {
+  const t = L();
+  const seg = (attr, items, current) => `<div class="seg" role="group">${items.map(([v, label]) =>
+    `<button type="button" class="btn compact${v === current ? ' active' : ''}" data-${attr}="${esc(v)}" aria-pressed="${v === current}">${esc(label)}</button>`).join('')}</div>`;
+  const views = camState.list.map(c => [c.id, c.name]);
+  if (camState.list.length > 1) views.push(['all', t.camBoth]);
+  return `<div class="camera-toolbar">${seg('cam-view', views, camState.view)}` +
+    (camState.caps.live ? seg('cam-mode', [['live', t.camLive], ['photo', t.camPhoto]], camState.mode) : '') +
+    (camState.caps.live && camState.mode === 'live' ? seg('cam-q', [['low', t.camLow], ['high', t.camHigh]], camState.quality) : '') +
+    `</div>${camState.view === 'all' && camState.mode === 'live' ? `<p class="camera-hint muted">${esc(t.camBothHint)}</p>` : ''}`;
+}
+function ptzPad(id) {
+  if (!camState.caps.ptz.includes(id)) return '';
+  const b = (dir, sym) => `<button type="button" class="ptz-btn ptz-${dir}" data-ptz="${dir}" data-cam="${esc(id)}" aria-label="${dir}">${sym}</button>`;
+  return `<div class="ptz-pad">${b('up', '▲')}${b('left', '◀')}${b('right', '▶')}${b('down', '▼')}</div>`;
+}
+async function renderCameras() {
+  const t = L();
   stopCameras();
-  if (!camState.list.length) return;
+  const shown = camState.view === 'all' ? camState.list : camState.list.filter(c => c.id === camState.view);
+  const live = camState.mode === 'live' && camState.caps.live;
+  $('#camera-toolbar-slot').innerHTML = camState.list.length ? cameraToolbar() : '';
+  $('#camera-grid').classList.toggle('single', shown.length === 1);
+  $('#camera-grid').innerHTML = shown.length
+    ? shown.map(c => `<figure class="camera-tile" data-cam="${esc(c.id)}"><div class="camera-media">${live
+        ? `<video muted autoplay playsinline disablepictureinpicture></video>` : `<img alt="${esc(c.name)}">`}${ptzPad(c.id)}</div>` +
+        `<figcaption><strong>${esc(c.name)}</strong><span class="camera-age">${esc(t.camConnecting)}</span></figcaption></figure>`).join('')
+    : `<p class="muted">${esc(t.camNone)}</p>`;
+  if (!shown.length || !$('#camera-dialog').open || document.hidden) return;
+  if (!live) { startCameras(shown); return; }
+  try {
+    if (!camState.token || camState.token.expires * 1000 - Date.now() < 120000) camState.token = await api('/api/cameras/live-token', {method:'POST', body:'{}'});
+  } catch (e) { toast(e.message, true); return; }
+  for (const c of shown) {
+    const v = $(`.camera-tile[data-cam="${c.id}"] video`);
+    v.src = `${API_BASE}/api/cameras/${encodeURIComponent(c.id)}/live.mp4?q=${camState.quality}&t=${encodeURIComponent(camState.token.token)}`;
+    v.addEventListener('playing', () => { const a = $(`.camera-tile[data-cam="${c.id}"] .camera-age`); if (a) { a.textContent = '● ' + t.camLive; a.parentElement.parentElement.classList.remove('stale'); } });
+    v.addEventListener('error', () => { const a = $(`.camera-tile[data-cam="${c.id}"] .camera-age`); if (a) { a.textContent = t.camStale; a.parentElement.parentElement.classList.add('stale'); } });
+    v.play().catch(() => {});
+  }
+  // progressive MP4 keeps buffering; stay near the live edge and restart a stalled stream
+  const progress = {};
+  camState.chase = setInterval(() => {
+    for (const v of $$('#camera-grid video')) {
+      const id = v.closest('.camera-tile').dataset.cam;
+      if (v.buffered.length) {
+        const end = v.buffered.end(v.buffered.length - 1);
+        if (end - v.currentTime > 3) v.currentTime = end - 0.5;
+      }
+      const p = progress[id] || {time:-1, since:Date.now()};
+      if (v.currentTime !== p.time) progress[id] = {time:v.currentTime, since:Date.now()};
+      else if (Date.now() - p.since > 45000) { progress[id] = {time:-1, since:Date.now()}; const src = v.src; v.removeAttribute('src'); v.load(); v.src = src; v.play().catch(() => {}); }
+    }
+  }, 2000);
+}
+function startCameras(shown) {
   const tick = async () => {
-    await Promise.all(camState.list.map(refreshCamera));
+    await Promise.all(shown.map(refreshCamera));
     if ($('#camera-dialog').open && !document.hidden) camState.timer = setTimeout(tick, CAMERA_REFRESH_MS);
   };
   tick();
 }
 function stopCameras() {
   clearTimeout(camState.timer);
-  camState.timer = null;
+  clearInterval(camState.chase);
+  camState.timer = camState.chase = null;
+  for (const v of $$('#camera-grid video')) { v.pause(); v.removeAttribute('src'); v.load(); }
+}
+async function cameraControl(event) {
+  const btn = event.target.closest('[data-cam-view],[data-cam-mode],[data-cam-q],[data-ptz]');
+  if (!btn) return;
+  if (btn.dataset.ptz) {
+    btn.disabled = true;
+    try { await api(`/api/cameras/${encodeURIComponent(btn.dataset.cam)}/ptz`, {method:'POST', body:JSON.stringify({direction:btn.dataset.ptz})}); }
+    catch (e) { toast(e.message, true); }
+    finally { btn.disabled = false; }
+    return;
+  }
+  if (btn.dataset.camView) camState.view = btn.dataset.camView;
+  if (btn.dataset.camMode) camState.mode = btn.dataset.camMode;
+  if (btn.dataset.camQ) camState.quality = btn.dataset.camQ;
+  try { localStorage.setItem('atolye-cam-view', camState.view); localStorage.setItem('atolye-cam-mode', camState.mode); localStorage.setItem('atolye-cam-q', camState.quality); } catch (_) {}
+  renderCameras();
 }
 async function refreshCamera(cam) {
   const tile = $(`.camera-tile[data-cam="${cam.id}"]`);
@@ -793,11 +866,8 @@ async function refreshCamera(cam) {
     $('img', tile).src = url;
     if (camState.urls[cam.id]) URL.revokeObjectURL(camState.urls[cam.id]);
     camState.urls[cam.id] = url;
-    const secs = Number(response.headers.get('X-Frame-Age') || 0);
-    // the server only pulls video while someone watches, so the first frames after opening are old
-    const warming = secs > 30 && Date.now() - camState.openedAt < 25000;
-    age.textContent = warming ? t.camConnecting : secs > 30 ? t.camStale : secs + ' ' + t.camAgo;
-    tile.classList.toggle('stale', secs > 30 && !warming);
+    age.textContent = new Date().toLocaleTimeString(t.locale);
+    tile.classList.remove('stale');
   } catch (e) {
     age.textContent = t.camStale;
     tile.classList.add('stale');
@@ -824,7 +894,8 @@ function events() {
   $$('.nav[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
   $('#camera-btn').addEventListener('click',openCameras);
   $('#camera-dialog').addEventListener('close',stopCameras);
-  document.addEventListener('visibilitychange',()=>{if($('#camera-dialog').open)document.hidden?stopCameras():startCameras();});
+  $('#camera-dialog').addEventListener('click',cameraControl);
+  document.addEventListener('visibilitychange',()=>{if($('#camera-dialog').open)document.hidden?stopCameras():renderCameras();});
   $$('.lang-btn').forEach(b=>b.addEventListener('click',()=>setLang(b.dataset.lang)));
   $$('[data-stat]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.stat==='low'?'inventory':b.dataset.stat,b.dataset.stat==='low'?'low':'')));
   $('#add-btn').addEventListener('click',()=>openItem());$('#help-btn').addEventListener('click',()=>$('#help-dialog').showModal());

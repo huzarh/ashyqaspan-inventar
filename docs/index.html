@@ -37,9 +37,9 @@
   <link rel="icon" href="logo.png" type="image/png" sizes="225x225">
   <link rel="apple-touch-icon" href="logo.png">
   <link rel="manifest" href="site.webmanifest">
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ashyq Aspan — Инженерлік шеберхана қоймасы және есебі","alternateName":"Инвентарь инженерной мастерской Ashyq Aspan Foundation","description":"Ashyq Aspan Foundation инженерлік шеберхана қоймасы және заттар есебі: 3D-принтер, электроника, өлшеу аспаптары мен құрал-саймандар тізімдемесі (ҚАЗ / РУС).","url":"https://huzarh.github.io/ashyqaspan-inventar/","image":"https://huzarh.github.io/ashyqaspan-inventar/og-cover.jpg","applicationCategory":"BusinessApplication","operatingSystem":"All","inLanguage":["kk","ru"],"publisher":{"@type":"Organization","name":"Ashyq Aspan Foundation","logo":{"@type":"ImageObject","url":"https://huzarh.github.io/ashyqaspan-inventar/logo.png"}}}</script>
-  <script src="app.js?v=11" defer></script>
+  <script src="app.js?v=12" defer></script>
 </head>
 <body>
 <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
@@ -130,7 +130,7 @@
 
 <dialog id="detail-dialog" class="drawer" aria-labelledby="detail-title"><div class="dialog-head"><div><div class="eyebrow" id="detail-code"></div><h2 id="detail-title">Зат туралы толық мәлімет</h2></div><button class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="detail-content" class="dialog-body"></div></dialog>
 
-<dialog id="camera-dialog" class="camera-dialog" aria-labelledby="camera-title"><div class="dialog-head"><h2 id="camera-title">Шеберхана камералары</h2><button class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div id="camera-grid" class="camera-grid"></div></div></dialog>
+<dialog id="camera-dialog" class="camera-dialog" aria-labelledby="camera-title"><div class="dialog-head"><h2 id="camera-title">Шеберхана камералары</h2><button class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><div id="camera-toolbar-slot"></div><div id="camera-grid" class="camera-grid"></div></div></dialog>
 <dialog id="help-dialog" class="small-dialog" aria-labelledby="help-title"><div class="dialog-head"><h2 id="help-title">Қалай қолданады?</h2><button class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body help" id="help-body"></div></dialog>
 
 <dialog id="auth-dialog" class="small-dialog" aria-labelledby="auth-title"><form id="auth-form"><div class="dialog-head"><div><div class="eyebrow" id="auth-eyebrow">ҚАУІПСІЗДІК</div><h2 id="auth-title">Рұқсат кілтін енгізіңіз</h2></div><button type="button" class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="dialog-body"><p id="auth-desc" class="hint">Өзгерту, өшіру және қалдықты түзету үшін кілт сөзді жазыңыз.</p><label class="field"><span class="field-label" id="lbl-auth-key">Кілт сөз (Пароль)</span><input id="auth-key-input" type="password" required autocomplete="off" placeholder="Кілт сөзді жазыңыз…"></label><p id="auth-error" class="form-error" role="alert" hidden></p></div><div class="dialog-footer"><button type="button" class="btn" id="auth-cancel-btn" data-close>Болдырмау</button><button type="submit" class="btn primary" id="auth-submit-btn">Растау</button></div></form></dialog>

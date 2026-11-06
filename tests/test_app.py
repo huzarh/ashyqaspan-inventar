@@ -273,27 +273,70 @@ class HttpTests(unittest.TestCase):
         finally:
             self.server.allowed_origins = set(); self.server.public_hosts = set()
 
+    @staticmethod
+    def fake_go2rtc():
+        """Stands in for go2rtc: JPEG frames and a short fMP4 body."""
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+
+        class H(BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_GET(self):
+                if self.path.startswith('/api/frame.jpeg?src=cam1'):
+                    body, ctype = b'\xff\xd8\xff\xe0fakejpeg', 'image/jpeg'
+                elif self.path.startswith('/api/stream.mp4?src=cam1_low'):
+                    body, ctype = b'\x00\x00\x00\x18ftypfakemp4', 'video/mp4'
+                else:
+                    self.send_response(404); self.end_headers(); return
+                self.send_response(200); self.send_header('Content-Type', ctype)
+                self.send_header('Content-Length', str(len(body))); self.end_headers(); self.wfile.write(body)
+
+        srv = HTTPServer(('127.0.0.1', 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        return srv
+
     def test_camera_frames_require_admin_key(self):
-        cam_dir = os.path.join(self.temp.name, 'cams')
-        os.makedirs(cam_dir, exist_ok=True)
-        with open(os.path.join(cam_dir, 'cam1.jpg'), 'wb') as f:
-            f.write(b'\xff\xd8\xff\xe0fakejpeg')
-        self.server.cameras = app.Cameras(cam_dir, 'cam1=Шеберхана')
+        fake = self.fake_go2rtc()
+        self.server.cameras = app.Cameras('cam1=Шеберхана', 'http://127.0.0.1:%d' % fake.server_address[1])
+        key = {'X-Admin-Key': 'ashyqaspan'}
         try:
             self.assertEqual(self.request('/api/cameras')[0], 403)
             self.assertEqual(self.request('/api/cameras/cam1.jpg')[0], 403)
-            status, raw, _ = self.request('/api/cameras', headers={'X-Admin-Key': 'ashyqaspan'})
+            status, raw, _ = self.request('/api/cameras', headers=key)
             self.assertEqual(status, 200)
-            self.assertEqual(json.loads(raw)[0]['name'], 'Шеберхана')
-            status, raw, headers = self.request('/api/cameras/cam1.jpg', headers={'X-Admin-Key': 'ashyqaspan'})
+            data = json.loads(raw)
+            self.assertEqual(data['cameras'][0]['name'], 'Шеберхана')
+            self.assertTrue(data['live'])
+            status, raw, headers = self.request('/api/cameras/cam1.jpg', headers=key)
             self.assertEqual(status, 200)
             self.assertTrue(raw.startswith(b'\xff\xd8'))
             self.assertEqual(headers['Content-Type'], 'image/jpeg')
-            self.assertIsNotNone(headers['X-Frame-Age'])
-            self.assertEqual(self.request('/api/cameras/../app.jpg', headers={'X-Admin-Key': 'ashyqaspan'})[0], 404)
-            self.assertEqual(self.request('/api/cameras/cam9.jpg', headers={'X-Admin-Key': 'ashyqaspan'})[0], 404)
+            self.assertEqual(self.request('/api/cameras/../app.jpg', headers=key)[0], 404)
+            self.assertEqual(self.request('/api/cameras/cam9.jpg', headers=key)[0], 404)
         finally:
-            self.server.cameras = app.Cameras()
+            self.server.cameras = app.Cameras(); fake.shutdown(); fake.server_close()
+
+    def test_live_token_and_ptz_require_admin_key(self):
+        fake = self.fake_go2rtc()
+        self.server.cameras = app.Cameras('cam1=X', 'http://127.0.0.1:%d' % fake.server_address[1])
+        try:
+            h = {'X-App-Token': self.server.token}
+            self.assertEqual(self.request('/api/cameras/live-token', {}, h)[0], 403)
+            self.assertEqual(self.request('/api/cameras/cam1/ptz', {'direction': 'left'}, h)[0], 403)
+            status, raw, _ = self.request('/api/cameras/live-token', {}, dict(h, **{'X-Admin-Key': 'ashyqaspan'}))
+            self.assertEqual(status, 200)
+            token = json.loads(raw)['token']
+            self.assertEqual(self.request('/api/cameras/cam1/live.mp4?t=bad')[0], 403)
+            self.assertEqual(self.request('/api/cameras/cam1/live.mp4?t=1.%s' % token.split('.')[1])[0], 403)
+            status, raw, headers = self.request('/api/cameras/cam1/live.mp4?q=low&t=' + token)
+            self.assertEqual(status, 200)
+            self.assertEqual(headers['Content-Type'], 'video/mp4')
+            self.assertIn(b'ftyp', raw)
+            self.assertEqual(self.request('/api/cameras/cam7/live.mp4?t=' + token)[0], 404)
+            self.assertEqual(self.request('/api/cameras/cam1/ptz', {'direction': 'left'}, dict(h, **{'X-Admin-Key': 'ashyqaspan'}))[0], 404)
+        finally:
+            self.server.cameras = app.Cameras(); fake.shutdown(); fake.server_close()
 
     def test_host_and_file_traversal_guards(self):
         self.assertEqual(self.request('/api/bootstrap', headers={'Host': 'evil.invalid'})[0], 403)

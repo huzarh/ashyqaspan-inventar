@@ -2308,3 +2308,74 @@ body.busy {
 .camera-tile.stale .camera-age {
   color: #b91c1c;
 }
+
+.camera-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.camera-toolbar .seg {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.camera-toolbar .btn.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.camera-hint {
+  margin: -4px 0 12px;
+  font-size: 0.85rem;
+}
+
+.camera-grid.single {
+  grid-template-columns: 1fr;
+}
+
+.camera-media {
+  position: relative;
+}
+
+.camera-tile video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+}
+
+.ptz-pad {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: grid;
+  grid-template-areas: ". up ." "left . right" ". down .";
+  grid-template-columns: repeat(3, 40px);
+  grid-template-rows: repeat(3, 40px);
+  gap: 2px;
+}
+
+.ptz-btn {
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.ptz-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.ptz-btn:disabled {
+  opacity: 0.4;
+}
+
+.ptz-up { grid-area: up; }
+.ptz-left { grid-area: left; }
+.ptz-right { grid-area: right; }
+.ptz-down { grid-area: down; }

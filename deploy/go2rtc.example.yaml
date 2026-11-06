@@ -1,0 +1,14 @@
+# Copy to /etc/go2rtc/go2rtc.yaml and fill in the camera account (percent-encode special characters).
+api:
+  listen: "127.0.0.1:1984"
+rtsp:
+  listen: "127.0.0.1:8554"  # used internally by the ffmpeg transcode (*_low)
+webrtc:
+  listen: ""
+log:
+  level: warn
+streams:
+  cam1: rtsp://USER:PASS@192.168.8.183:554/stream2
+  cam1_low: ffmpeg:cam1#video=h264#width=640#raw=-b:v 350k -maxrate 450k -bufsize 900k
+  cam2: rtsp://USER:PASS@192.168.8.185:554/stream2
+  cam2_low: ffmpeg:cam2#video=h264#width=640#raw=-b:v 350k -maxrate 450k -bufsize 900k
