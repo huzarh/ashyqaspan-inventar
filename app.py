@@ -34,6 +34,8 @@ UNITS = ('adet', 'takım', 'paket', 'kutu', 'grup', 'metre', 'kg', 'litre')
 MAX_IMAGE = 8 * 1024 * 1024
 MAX_BACKUP = 120 * 1024 * 1024
 PHOTO_RE = re.compile(r'^[a-f0-9]{64}\.(jpg|png|webp)$')
+NEED_PRIORITIES = ('urgent', 'high', 'normal', 'low')
+NEED_STATUSES = ('new', 'approved', 'ordered', 'bought', 'rejected')
 SOURCE_RE = re.compile(r'^IMG_[0-9]{4}\.jpeg$')
 ADMIN_KEY = os.environ.get('ATOLYE_ADMIN_KEY', 'ashyqaspan')
 CORS_HEADERS = 'Content-Type, X-App-Token, X-Admin-Key, X-Confirm-Restore'
@@ -117,6 +119,14 @@ CREATE TABLE IF NOT EXISTS movements (
  note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, request_id TEXT NOT NULL UNIQUE
 );
 CREATE INDEX IF NOT EXISTS movement_item_idx ON movements(item_id,id);
+CREATE TABLE IF NOT EXISTS needs (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ name TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity>0), unit TEXT NOT NULL,
+ priority TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', project TEXT NOT NULL DEFAULT '',
+ reason TEXT NOT NULL DEFAULT '', link TEXT NOT NULL DEFAULT '', price INTEGER NOT NULL DEFAULT 0 CHECK(price>=0),
+ requested_by TEXT NOT NULL DEFAULT '', version INTEGER NOT NULL DEFAULT 1,
+ created_token TEXT UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
 '''
 
 
@@ -320,13 +330,96 @@ class Store:
                 result.append(r)
             return result
 
+    # Purchase requests ("needs"): what the workshop has to buy, how urgently and for which project.
+    @staticmethod
+    def _need_fields(body):
+        unit = body.get('unit', 'adet')
+        if unit not in UNITS:
+            raise Problem('Geçerli bir birim seçin.')
+        priority = body.get('priority', 'normal')
+        if priority not in NEED_PRIORITIES:
+            raise Problem('Aciliyet geçersiz.')
+        status = body.get('status', 'new')
+        if status not in NEED_STATUSES:
+            raise Problem('Durum geçersiz.')
+        q = quantity(body.get('quantity', 1))
+        if q <= 0:
+            raise Problem('Miktar sıfırdan büyük olmalı.')
+        link = text(body.get('link', ''), 'Link', 1000)
+        if link and not re.match(r'^https?://\S+$', link):
+            raise Problem('Link http:// veya https:// ile başlamalı.')
+        price = body.get('price', 0) or 0
+        if isinstance(price, bool) or not isinstance(price, (int, float, str)):
+            raise Problem('Fiyat geçerli bir sayı olmalı.')
+        try:
+            price = int(Decimal(str(price).replace(',', '.').replace(' ', '')))
+        except InvalidOperation:
+            raise Problem('Fiyat geçerli bir sayı olmalı.')
+        if price < 0 or price > 1000000000:
+            raise Problem('Fiyat 0–1.000.000.000 arasında olmalı.')
+        return dict(name=text(body.get('name', ''), 'Ad', required=True), quantity=q, unit=unit, priority=priority,
+                    status=status, project=text(body.get('project', ''), 'Proje', 200),
+                    reason=text(body.get('reason', ''), 'Açıklama', 4000), link=link, price=price,
+                    requested_by=text(body.get('requested_by', ''), 'İsteyen', 100))
+
+    @staticmethod
+    def _need_out(row):
+        r = dict(row)
+        r['quantity'] = r['quantity']/1000
+        r.pop('created_token', None)
+        return r
+
+    def needs(self):
+        with self.lock, self.connect() as db:
+            return [self._need_out(r) for r in db.execute('SELECT * FROM needs ORDER BY id DESC')]
+
+    def _need(self, db, ident):
+        row = db.execute('SELECT * FROM needs WHERE id=?', (ident,)).fetchone()
+        if not row:
+            raise Problem('Kayıt bulunamadı.', 404)
+        return row
+
+    def need_create(self, body):
+        token = text(body.get('request_id', ''), 'İşlem kimliği', 100, True)
+        fields = self._need_fields(body)
+        with self.lock, self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT id FROM needs WHERE created_token=?', (token,)).fetchone()
+            if existing:
+                ident = existing['id']
+            else:
+                timestamp = now()
+                fields.update(created_token=token, created_at=timestamp, updated_at=timestamp)
+                cur = db.execute('INSERT INTO needs ('+','.join(fields)+') VALUES ('+','.join('?' for _ in fields)+')', tuple(fields.values()))
+                ident = cur.lastrowid
+            return self._need_out(self._need(db, ident))
+
+    def need_edit(self, ident, body):
+        fields = self._need_fields(body)
+        with self.lock, self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = self._need(db, ident)
+            if body.get('version') != row['version']:
+                raise Problem('Kayıt başka biri tarafından değiştirildi. Sayfayı yenileyip tekrar deneyin.', 409)
+            fields.update(version=row['version']+1, updated_at=now())
+            db.execute('UPDATE needs SET '+','.join(k+'=?' for k in fields)+' WHERE id=?', tuple(fields.values())+(ident,))
+            return self._need_out(self._need(db, ident))
+
+    def need_delete(self, ident):
+        with self.lock, self.connect() as db:
+            self._need(db, ident)
+            db.execute('DELETE FROM needs WHERE id=?', (ident,))
+        return {'ok': True}
+
     def backup(self):
         with self.lock, self.connect() as db:
             items = [dict(r) for r in db.execute('SELECT * FROM items ORDER BY id')]
             movements = [dict(r) for r in db.execute('SELECT * FROM movements ORDER BY id')]
+            needs = [dict(r) for r in db.execute('SELECT * FROM needs ORDER BY id')]
             names = {r['photo'] for r in items if r['photo']}
             images = {n: base64.b64encode((self.uploads/n).read_bytes()).decode('ascii') for n in names}
-            return {'format': 'atolye-envanter', 'version': 1, 'created_at': now(), 'items': items, 'movements': movements, 'images': images}
+            return {'format': 'atolye-envanter', 'version': 1, 'created_at': now(), 'items': items, 'movements': movements,
+                    'needs': needs, 'images': images}
 
     def restore(self, payload):
         # Validate everything before mutation. Restore runs in a single DB transaction.
@@ -389,6 +482,20 @@ class Store:
                                          created_at=text(r.get('created_at', ''), 'Tarih', 100, True), request_id=token))
         if any(balance[r['id']] != r['quantity'] for r in items):
             raise Problem('Yedekte stok miktarı geçmişle uyuşmuyor.')
+        needs = payload.get('needs')  # absent in backups made before purchase requests existed
+        normalized_needs = []
+        if needs is not None:
+            if not isinstance(needs, list) or len(needs) > 50000:
+                raise Problem('Yedekte satın alma listesi geçersiz.')
+            need_ids = set()
+            for r in needs:
+                if not isinstance(r, dict) or any(type(r.get(k)) is not int for k in ('id', 'quantity', 'version')) or r['id'] <= 0 or r['id'] in need_ids or r['version'] < 1:
+                    raise Problem('Yedekte satın alma kaydı geçersiz.')
+                clean = self._need_fields(dict(r, quantity=str(Decimal(r['quantity'])/1000)))
+                clean.update(id=r['id'], version=r['version'], created_token=r.get('created_token'),
+                             created_at=text(r.get('created_at', ''), 'Tarih', 100, True), updated_at=text(r.get('updated_at', ''), 'Tarih', 100, True))
+                need_ids.add(r['id'])
+                normalized_needs.append(clean)
         with self.lock:
             # A recoverable copy of the pre-restore database is kept automatically.
             pre = self.directory/'otomatik_yedekler'
@@ -406,10 +513,14 @@ class Store:
             with self.connect() as db:
                 db.execute('BEGIN IMMEDIATE')
                 db.execute('DELETE FROM movements'); db.execute('DELETE FROM items')
-                for table, rows in (('items', normalized_items), ('movements', normalized_moves)):
+                tables = [('items', normalized_items), ('movements', normalized_moves)]
+                if needs is not None:
+                    db.execute('DELETE FROM needs')
+                    tables.append(('needs', normalized_needs))
+                for table, rows in tables:
                     for r in rows:
                         db.execute('INSERT INTO '+table+' ('+','.join(r)+') VALUES ('+','.join('?' for _ in r)+')', tuple(r.values()))
-        return {'items': len(items), 'movements': len(moves)}
+        return {'items': len(items), 'movements': len(moves), 'needs': len(normalized_needs)}
 
 
 def xlsx_bytes(sheets):
@@ -515,7 +626,24 @@ def export_excel(store, lang='tr'):
         else:
             m_name, m_kind, m_unit, m_note = r['name'], r['kind'], r['unit'], r['note']
         history.append([r['id'], r['item_id'], m_name, m_kind, r['delta'], r['balance'], m_unit, m_note, r['created_at']])
-    return xlsx_bytes([(sheet_names[0], rows(False)), (sheet_names[1], rows(True)), (sheet_names[2], history)])
+    need_words = {
+        'kz': ('Сатып алу', ['№', 'Атауы', 'Саны', 'Бірлік', 'Шұғылдығы', 'Күйі', 'Жоба', 'Не үшін керек', 'Бағасы (₸)', 'Жалпы (₸)', 'Сілтеме', 'Кім сұрады', 'Күні'],
+               dict(urgent='Шұғыл', high='Жоғары', normal='Қалыпты', low='Төмен'),
+               dict(new='Жаңа', approved='Мақұлданды', ordered='Тапсырыс берілді', bought='Сатып алынды', rejected='Бас тартылды')),
+        'ru': ('Закупки', ['№', 'Название', 'Кол-во', 'Ед.', 'Срочность', 'Статус', 'Проект', 'Зачем нужно', 'Цена (₸)', 'Сумма (₸)', 'Ссылка', 'Кто запросил', 'Дата'],
+               dict(urgent='Срочно', high='Высокая', normal='Обычная', low='Низкая'),
+               dict(new='Новая', approved='Одобрено', ordered='Заказано', bought='Куплено', rejected='Отклонено')),
+        'tr': ('Satın alma', ['No', 'Ad', 'Miktar', 'Birim', 'Aciliyet', 'Durum', 'Proje', 'Neden gerekli', 'Fiyat (₸)', 'Toplam (₸)', 'Link', 'İsteyen', 'Tarih'],
+               dict(urgent='Acil', high='Yüksek', normal='Normal', low='Düşük'),
+               dict(new='Yeni', approved='Onaylandı', ordered='Sipariş verildi', bought='Alındı', rejected='Reddedildi')),
+    }
+    need_sheet, need_hdr, pri_l, st_l = need_words.get(lang, need_words['tr'])
+    order = {p: i for i, p in enumerate(NEED_PRIORITIES)}
+    needs = sorted(store.needs(), key=lambda n: (n['status'] in ('bought', 'rejected'), order[n['priority']], -n['id']))
+    need_rows = [need_hdr] + [[n['id'], n['name'], n['quantity'], n['unit'], pri_l[n['priority']], st_l[n['status']], n['project'],
+                               n['reason'], n['price'] or '', round(n['price']*n['quantity']) if n['price'] else '', n['link'],
+                               n['requested_by'], n['created_at'][:10]] for n in needs]
+    return xlsx_bytes([(sheet_names[0], rows(False)), (sheet_names[1], rows(True)), (sheet_names[2], history), (need_sheet, need_rows)])
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -587,6 +715,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, self.server.store.items())
             if path == '/api/movements':
                 return self.reply(200, self.server.store.movements())
+            if path == '/api/needs':
+                return self.reply(200, self.server.store.needs())
             if path == '/api/export.xlsx':
                 lang = parse_qs(parsed.query).get('lang', ['tr'])[0]
                 prefix = {'kz': 'Sheberhana_Tizimdemesi_', 'ru': 'Masterskaya_Inventar_'}.get(lang, 'Atolye_Envanteri_')
@@ -678,11 +808,13 @@ class Handler(BaseHTTPRequestHandler):
                 raise Problem('Oturumu yenileyip tekrar deneyin.', 403)
             path = urlparse(self.path).path
             if self.command == 'DELETE':
-                match_del = re.fullmatch('/api/items/([0-9]+)', path)
+                match_del = re.fullmatch('/api/(items|needs)/([0-9]+)', path)
                 if not match_del:
                     raise Problem('İşlem bulunamadı.', 404)
                 self.check_admin()
-                return self.reply(200, self.server.store.delete(int(match_del.group(1))))
+                ident = int(match_del.group(2))
+                store = self.server.store
+                return self.reply(200, store.delete(ident) if match_del.group(1) == 'items' else store.need_delete(ident))
             maximum = MAX_BACKUP if path == '/api/restore' else 12 * 1024 * 1024
             try:
                 size = int(self.headers.get('Content-Length', '-1'))
@@ -712,6 +844,13 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/items' and self.command == 'POST':
                 self.check_admin(body)
                 return self.reply(201, store.create(body))
+            if path == '/api/needs' and self.command == 'POST':
+                self.check_admin(body)
+                return self.reply(201, store.need_create(body))
+            match_need = re.fullmatch('/api/needs/([0-9]+)', path)
+            if match_need and self.command == 'PATCH':
+                self.check_admin(body)
+                return self.reply(200, store.need_edit(int(match_need.group(1)), body))
             match = re.fullmatch('/api/items/([0-9]+)(/movements)?', path)
             if match:
                 ident = int(match.group(1))

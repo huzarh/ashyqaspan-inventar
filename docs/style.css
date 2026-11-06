@@ -672,7 +672,9 @@ h3 {
   flex-wrap: wrap;
 }
 
-.filters select {
+.filters select,
+.need-toolbar select,
+.need-status-select {
   font-size: 12px;
   font-weight: 500;
   border: 1px solid var(--border);
@@ -684,7 +686,9 @@ h3 {
   height: 30px;
 }
 
-.filters select:hover {
+.filters select:hover,
+.need-toolbar select:hover,
+.need-status-select:hover {
   background: var(--bg-hover);
   color: var(--ink-strong);
 }
@@ -1304,7 +1308,8 @@ dialog::backdrop {
   color: var(--red);
 }
 
-.field input, .field select, .field textarea {
+.field input, .field select, .field textarea,
+.need-form-body input:not([type="radio"]), .need-form-body select, .need-form-body textarea {
   width: 100%;
   padding: 7px 10px;
   font-size: 13px;
@@ -1316,12 +1321,14 @@ dialog::backdrop {
   transition: border-color 0.1s ease;
 }
 
-.field input::placeholder, .field textarea::placeholder {
+.field input::placeholder, .field textarea::placeholder,
+.need-form-body input::placeholder, .need-form-body textarea::placeholder {
   color: var(--muted);
   font-weight: 400;
 }
 
-.field input:focus, .field select:focus, .field textarea:focus {
+.field input:focus, .field select:focus, .field textarea:focus,
+.need-form-body input:focus, .need-form-body select:focus, .need-form-body textarea:focus {
   outline: none;
   border-color: var(--brand);
   box-shadow: 0 0 0 2px rgba(0, 136, 255, 0.14);
@@ -2379,3 +2386,230 @@ body.busy {
 .ptz-left { grid-area: left; }
 .ptz-right { grid-area: right; }
 .ptz-down { grid-area: down; }
+
+/* Purchase requests ("needs") */
+.needs-view {
+  padding: 16px;
+}
+
+.need-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.need-sum {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: inherit;
+  text-align: left;
+}
+
+button.need-sum {
+  cursor: pointer;
+}
+
+button.need-sum:hover {
+  background: var(--bg-hover);
+}
+
+.need-sum strong {
+  font-size: 1.5rem;
+}
+
+.need-sum small {
+  color: var(--muted);
+}
+
+.need-sum.urgent strong {
+  color: #dc2626;
+}
+
+.need-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.need-toolbar .search {
+  flex: 1 1 260px;
+}
+
+.need-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.need-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--pri, #94a3b8);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.need-card.closed {
+  opacity: 0.6;
+}
+
+.need-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.pri-urgent { --pri: #dc2626; }
+.pri-high { --pri: #ea580c; }
+.pri-normal { --pri: #2563eb; }
+.pri-low { --pri: #94a3b8; }
+
+.need-top,
+.need-foot,
+.need-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.need-top,
+.need-foot {
+  justify-content: space-between;
+}
+
+.need-pri {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--pri);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.need-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 0.92rem;
+}
+
+.need-project {
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+}
+
+.need-reason {
+  margin: 0;
+  color: #444444;
+  font-size: 0.9rem;
+  white-space: pre-line;
+}
+
+.need-foot {
+  font-size: 0.85rem;
+}
+
+.need-actions {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+}
+
+.need-status-select {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+#needs-count.urgent-badge {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.need-dialog {
+  width: min(640px, calc(100% - 32px));
+}
+
+.need-form-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.need-form-body label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.need-form-body .full {
+  grid-column: 1 / -1;
+}
+
+.need-pri-pick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.need-pri-pick legend {
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.need-pri-pick label {
+  position: relative;
+}
+
+.need-pri-pick input {
+  position: absolute;
+  opacity: 0;
+}
+
+.need-pri-pick span {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.need-pri-pick small {
+  color: var(--muted);
+}
+
+.need-pri-pick input:checked + span {
+  border-color: var(--pri);
+  background: color-mix(in srgb, var(--pri) 10%, transparent);
+}
+
+.need-pri-pick input:focus-visible + span {
+  outline: 2px solid var(--pri);
+}
+
+.dialog-footer .spacer {
+  flex: 1;
+}
+
+@media (max-width: 600px) {
+  .need-form-body,
+  .need-pri-pick {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -142,6 +142,43 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(item['quantity'], 3)
         self.assertEqual(len(self.store.movements()), 2)
 
+    def need(self, **changes):
+        data = dict(request_id=str(uuid.uuid4()), name='PLA filament 1kg', quantity='3', unit='adet', priority='urgent',
+                    project='Дрон рамасы', reason='Принтерге керек', price='8500', link='https://kaspi.kz/x', requested_by='Нұрлыбай')
+        data.update(changes)
+        return data
+
+    def test_needs_create_edit_delete(self):
+        req = self.need()
+        n = self.store.need_create(req)
+        self.assertEqual((n['quantity'], n['priority'], n['status'], n['price'], n['version']), (3, 'urgent', 'new', 8500, 1))
+        self.assertEqual(self.store.need_create(req)['id'], n['id'])  # resend is idempotent
+        n2 = self.store.need_edit(n['id'], dict(n, status='bought'))
+        self.assertEqual((n2['status'], n2['version']), ('bought', 2))
+        with self.assertRaises(app.Problem) as stale:
+            self.store.need_edit(n['id'], dict(n, status='rejected'))  # old version
+        self.assertEqual(stale.exception.status, 409)
+        self.store.need_delete(n['id'])
+        self.assertEqual(self.store.needs(), [])
+
+    def test_needs_validation(self):
+        for bad in (dict(priority='asap'), dict(status='lost'), dict(quantity='0'), dict(name=' '),
+                    dict(link='javascript:alert(1)'), dict(price='-5'), dict(unit='ton')):
+            with self.assertRaises(app.Problem, msg=str(bad)):
+                self.store.need_create(self.need(**bad))
+        self.assertEqual(self.store.needs(), [])
+
+    def test_needs_survive_backup_restore(self):
+        self.store.need_create(self.need())
+        snapshot = self.store.backup()
+        saved = self.store.needs()
+        self.store.need_create(self.need(name='Басқа'))
+        self.assertEqual(self.store.restore(snapshot)['needs'], 1)
+        self.assertEqual(self.store.needs(), saved)
+        old_format = dict(snapshot); old_format.pop('needs')
+        self.store.restore(old_format)  # older backups leave the purchase list alone
+        self.assertEqual(self.store.needs(), saved)
+
     def test_bad_photo_rejected(self):
         for image in ('not base64', base64.b64encode(b'<svg onload="x"/>').decode()):
             with self.assertRaises(app.Problem):
@@ -155,7 +192,7 @@ class StoreTests(unittest.TestCase):
         saved_items, saved_moves = self.store.items(), self.store.movements()
         self.store.create(body(name='Diğer ürün'))
         result = self.store.restore(snapshot)
-        self.assertEqual(result, dict(items=1, movements=2))
+        self.assertEqual(result, dict(items=1, movements=2, needs=0))
         self.assertEqual(self.store.items(), saved_items)
         self.assertEqual(self.store.movements(), saved_moves)
         self.assertTrue(list((self.store.directory/'otomatik_yedekler').glob('*.sqlite3')))
@@ -337,6 +374,20 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(self.request('/api/cameras/cam1/ptz', {'direction': 'left'}, dict(h, **{'X-Admin-Key': 'ashyqaspan'}))[0], 404)
         finally:
             self.server.cameras = app.Cameras(); fake.shutdown(); fake.server_close()
+
+    def test_needs_http_read_public_write_admin(self):
+        h = {'X-App-Token': self.server.token, 'Origin': self.base}
+        req = dict(request_id=str(uuid.uuid4()), name='Припой', quantity='2', unit='adet', priority='high')
+        self.assertEqual(self.request('/api/needs', req, h)[0], 403)
+        status, raw, _ = self.request('/api/needs', req, dict(h, **{'X-Admin-Key': 'ashyqaspan'}))
+        self.assertEqual(status, 201)
+        created = json.loads(raw)
+        status, raw, _ = self.request('/api/needs')
+        self.assertEqual(status, 200)
+        self.assertIn(created['id'], [n['id'] for n in json.loads(raw)])
+        self.assertEqual(self.request('/api/needs/%d' % created['id'], dict(created, status='approved'), h, method='PATCH')[0], 403)
+        self.assertEqual(self.request('/api/needs/%d' % created['id'], None, h, method='DELETE')[0], 403)
+        self.assertEqual(self.request('/api/needs/%d' % created['id'], None, dict(h, **{'X-Admin-Key': 'ashyqaspan'}), method='DELETE')[0], 200)
 
     def test_host_and_file_traversal_guards(self):
         self.assertEqual(self.request('/api/bootstrap', headers={'Host': 'evil.invalid'})[0], 403)

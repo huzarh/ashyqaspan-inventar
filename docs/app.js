@@ -321,6 +321,8 @@ function applyLangUI() {
   setTxt('#nav-hist-text', t.navHist);
   setTxt('#nav-arch-text', t.navArch);
   setTxt('#nav-cam-text', t.navCam);
+  setTxt('#nav-needs-text', NT().nav);
+  if (state.page === 'needs') { const [bread, title, description] = L().pages.needs; setTxt('#breadcrumb', bread); setTxt('#page-title', title); setTxt('#page-description', description); renderNeeds(); }
   setTxt('#camera-title', t.camTitle);
   setTxt('#sidebar-note-title', t.sideTitle);
   setTxt('#sidebar-note-desc', t.sideDesc);
@@ -425,7 +427,10 @@ async function navigate(page, status='') {
   $('#breadcrumb').textContent=bread;$('#page-title').textContent=title;$('#page-description').textContent=description;
   $('#page-note').textContent=note;$('#page-note').hidden=!note;
   $$('.nav').forEach(n=>{n.classList.toggle('active',n.dataset.page===page);if(n.dataset.page===page)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});
-  $('#stats').hidden=page==='history'||page==='archive';
+  const needsPage=page==='needs';
+  $('#stats').hidden=page==='history'||page==='archive'||needsPage;
+  $('section.workspace:not(#needs-view)').hidden=needsPage;$('#needs-view').hidden=!needsPage;$('#bottom-note').hidden=needsPage;
+  if(needsPage){await loadNeeds();renderNeeds();return;}
   $('#view-grid').disabled=page==='history';$('#status-filter').hidden=page==='history';
   if(page==='history') {try {state.moves=await api('/api/movements');}catch(e){toast(e.message,true);}}
   render();
@@ -748,6 +753,228 @@ async function download(path, fallback, button) {
     toast(t.fileReadyToast);
   }catch(e){toast(e.message,true);}finally{button.disabled=false;}
 }
+// Purchase requests ("needs"): what the workshop must buy, how urgently and for which project.
+const NEED_PRIORITIES = ['urgent', 'high', 'normal', 'low'];
+const NEED_STATUSES = ['new', 'approved', 'ordered', 'bought', 'rejected'];
+const NEED_OPEN = ['new', 'approved', 'ordered'];
+const NEED_TEXT = {
+  kz: {nav:'Сатып алу', page:['Сатып алу', 'Сатып алу тізімі', 'Шеберханаға не керек, қаншалықты шұғыл және қай жобаға — бәрі бір жерде.', ''],
+    add:'Қажеттілік қосу', edit:'Қажеттілікті өзгерту', newTitle:'Жаңа қажеттілік', name:'Не керек?', namePh:'Мысалы: PLA филамент 1 кг, ақ',
+    qty:'Саны', unit:'Бірлік', priority:'Шұғылдығы', project:'Қай жобаға?', projectPh:'Мысалы: FPV дрон, Робот-қол, Сабақ',
+    reason:'Не үшін керек?', reasonPh:'Қысқаша түсіндіріңіз: не істейміз, неге қазір керек…', price:'Бір данасының бағасы (₸)', link:'Сатып алу сілтемесі',
+    by:'Кім сұрады?', status:'Күйі', save:'Сақтау', cancel:'Болдырмау', del:'Жою', delConfirm:'Бұл қажеттілікті жою керек пе?',
+    saved:'Сақталды', deleted:'Жойылды', search:'Атауы, жоба немесе түсініктеме бойынша іздеу…', allProjects:'Барлық жобалар',
+    allPri:'Барлық шұғылдық', fOpen:'Ашық (алынбаған)', fAll:'Барлығы', sumUrgent:'Шұғыл', sumUrgentSub:'тез арада алу керек',
+    sumOpen:'Ашық қажеттілік', sumOpenSub:'әлі алынбаған', sumCost:'Болжамды сома', sumCostSub:'бағасы жазылған ашықтар',
+    sumBought:'Сатып алынды', sumBoughtSub:'барлық уақытта', empty:'Әзірге ештеңе жоқ. «Қажеттілік қосу» батырмасын басыңыз.',
+    noMatch:'Сүзгіге сәйкес ештеңе табылмады.', toStock:'Қоймаға қосу', open:'Сілтеме', offline:'Тізім тек сервер қосулы кезде көрінеді.',
+    pri:{urgent:'Шұғыл', high:'Жоғары', normal:'Қалыпты', low:'Төмен'},
+    priHint:{urgent:'жұмыс тоқтап тұр', high:'осы аптада', normal:'жоспар бойынша', low:'кейін болса да болады'},
+    st:{new:'Жаңа', approved:'Мақұлданды', ordered:'Тапсырыс берілді', bought:'Сатып алынды', rejected:'Бас тартылды'}},
+  ru: {nav:'Закупки', page:['Закупки', 'Список закупок', 'Что нужно мастерской, насколько срочно и для какого проекта — всё в одном месте.', ''],
+    add:'Добавить потребность', edit:'Изменить потребность', newTitle:'Новая потребность', name:'Что нужно?', namePh:'Например: PLA филамент 1 кг, белый',
+    qty:'Количество', unit:'Ед.', priority:'Срочность', project:'Для какого проекта?', projectPh:'Например: FPV дрон, Робот-рука, Урок',
+    reason:'Зачем нужно?', reasonPh:'Коротко: что делаем и почему нужно сейчас…', price:'Цена за единицу (₸)', link:'Ссылка на покупку',
+    by:'Кто запросил?', status:'Статус', save:'Сохранить', cancel:'Отмена', del:'Удалить', delConfirm:'Удалить эту потребность?',
+    saved:'Сохранено', deleted:'Удалено', search:'Поиск по названию, проекту или описанию…', allProjects:'Все проекты',
+    allPri:'Любая срочность', fOpen:'Открытые (не куплено)', fAll:'Все', sumUrgent:'Срочно', sumUrgentSub:'купить как можно скорее',
+    sumOpen:'Открытые', sumOpenSub:'ещё не куплено', sumCost:'Ожидаемая сумма', sumCostSub:'открытые с ценой',
+    sumBought:'Куплено', sumBoughtSub:'за всё время', empty:'Пока пусто. Нажмите «Добавить потребность».',
+    noMatch:'По фильтру ничего не найдено.', toStock:'Добавить на склад', open:'Ссылка', offline:'Список виден только когда сервер работает.',
+    pri:{urgent:'Срочно', high:'Высокая', normal:'Обычная', low:'Низкая'},
+    priHint:{urgent:'работа стоит', high:'на этой неделе', normal:'по плану', low:'можно позже'},
+    st:{new:'Новая', approved:'Одобрено', ordered:'Заказано', bought:'Куплено', rejected:'Отклонено'}},
+  tr: {nav:'Satın alma', page:['Satın alma', 'Satın alma listesi', 'Atölyenin neye ihtiyacı var, ne kadar acil, hangi proje için — hepsi tek yerde.', ''],
+    add:'İhtiyaç ekle', edit:'İhtiyacı düzenle', newTitle:'Yeni ihtiyaç', name:'Ne lazım?', namePh:'Örn: PLA filament 1 kg, beyaz',
+    qty:'Miktar', unit:'Birim', priority:'Aciliyet', project:'Hangi proje için?', projectPh:'Örn: FPV drone, Robot kol, Ders',
+    reason:'Neden gerekli?', reasonPh:'Kısaca: ne yapacağız, neden şimdi lazım…', price:'Birim fiyat (₸)', link:'Satın alma linki',
+    by:'Kim istedi?', status:'Durum', save:'Kaydet', cancel:'Vazgeç', del:'Sil', delConfirm:'Bu ihtiyaç silinsin mi?',
+    saved:'Kaydedildi', deleted:'Silindi', search:'Ad, proje veya açıklamada ara…', allProjects:'Tüm projeler',
+    allPri:'Tüm aciliyetler', fOpen:'Açık (alınmamış)', fAll:'Hepsi', sumUrgent:'Acil', sumUrgentSub:'hemen alınmalı',
+    sumOpen:'Açık ihtiyaç', sumOpenSub:'henüz alınmadı', sumCost:'Tahmini tutar', sumCostSub:'fiyatı yazılı açıklar',
+    sumBought:'Alındı', sumBoughtSub:'tüm zamanlar', empty:'Henüz bir şey yok. «İhtiyaç ekle»ye basın.',
+    noMatch:'Filtreye uyan kayıt yok.', toStock:'Envantere ekle', open:'Link', offline:'Liste yalnızca sunucu açıkken görünür.',
+    pri:{urgent:'Acil', high:'Yüksek', normal:'Normal', low:'Düşük'},
+    priHint:{urgent:'iş durdu', high:'bu hafta', normal:'plana göre', low:'sonra da olur'},
+    st:{new:'Yeni', approved:'Onaylandı', ordered:'Sipariş verildi', bought:'Alındı', rejected:'Reddedildi'}},
+};
+for (const lang of Object.keys(NEED_TEXT)) if (UI[lang]?.pages) UI[lang].pages.needs = NEED_TEXT[lang].page;
+const NT = () => NEED_TEXT[state.lang] || NEED_TEXT.kz;
+const needState = {list:[], status:'open', priority:'', project:'', query:'', editId:null};
+const money = v => new Intl.NumberFormat(L().locale, {maximumFractionDigits:0}).format(v);
+
+async function loadNeeds() {
+  if (state.staticMode) { needState.list = []; updateNeedsBadge(); return; }
+  try { needState.list = await api('/api/needs'); } catch (e) { toast(e.message, true); }
+  updateNeedsBadge();
+}
+function updateNeedsBadge() {
+  const el = $('#needs-count');
+  if (!el) return;
+  const urgent = needState.list.filter(n => NEED_OPEN.includes(n.status) && n.priority === 'urgent').length;
+  const open = needState.list.filter(n => NEED_OPEN.includes(n.status)).length;
+  el.textContent = open ? String(open) : '';
+  el.classList.toggle('urgent-badge', urgent > 0);
+}
+function needsVisible() {
+  const q = normalize(needState.query);
+  const order = Object.fromEntries(NEED_PRIORITIES.map((p, i) => [p, i]));
+  return needState.list
+    .filter(n => needState.status === 'all' ? true : needState.status === 'open' ? NEED_OPEN.includes(n.status) : n.status === needState.status)
+    .filter(n => !needState.priority || n.priority === needState.priority)
+    .filter(n => !needState.project || n.project === needState.project)
+    .filter(n => !q || normalize([n.name, n.project, n.reason, n.requested_by].join(' ')).includes(q))
+    .sort((a, b) => (NEED_OPEN.includes(b.status) - NEED_OPEN.includes(a.status)) || (order[a.priority] - order[b.priority]) || (b.id - a.id));
+}
+function renderNeeds() {
+  const root = $('#needs-view');
+  if (!root) return;
+  const t = NT();
+  if (state.staticMode) { root.innerHTML = `<div class="empty">${icon('alert')}<p>${esc(t.offline)}</p></div>`; return; }
+  const all = needState.list;
+  const open = all.filter(n => NEED_OPEN.includes(n.status));
+  const cost = open.reduce((s, n) => s + (n.price || 0) * n.quantity, 0);
+  const projects = [...new Set(all.map(n => n.project).filter(Boolean))].sort();
+  const opt = (v, label, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
+  const rows = needsVisible();
+  root.innerHTML = `
+    <div class="need-summary">
+      <button type="button" class="need-sum urgent" data-need-filter="urgent"><strong>${open.filter(n => n.priority === 'urgent').length}</strong><span>${esc(t.sumUrgent)}</span><small>${esc(t.sumUrgentSub)}</small></button>
+      <button type="button" class="need-sum" data-need-filter="open"><strong>${open.length}</strong><span>${esc(t.sumOpen)}</span><small>${esc(t.sumOpenSub)}</small></button>
+      <div class="need-sum"><strong>${money(cost)} ₸</strong><span>${esc(t.sumCost)}</span><small>${esc(t.sumCostSub)}</small></div>
+      <button type="button" class="need-sum" data-need-filter="bought"><strong>${all.filter(n => n.status === 'bought').length}</strong><span>${esc(t.sumBought)}</span><small>${esc(t.sumBoughtSub)}</small></button>
+    </div>
+    <div class="toolbar need-toolbar">
+      <label class="search">${icon('search')}<input id="need-search" type="search" placeholder="${esc(t.search)}" value="${esc(needState.query)}" autocomplete="off"></label>
+      <select id="need-status-filter">${opt('open', t.fOpen, needState.status)}${opt('all', t.fAll, needState.status)}${NEED_STATUSES.map(s => opt(s, t.st[s], needState.status)).join('')}</select>
+      <select id="need-priority-filter">${opt('', t.allPri, needState.priority)}${NEED_PRIORITIES.map(p => opt(p, t.pri[p], needState.priority)).join('')}</select>
+      <select id="need-project-filter">${opt('', t.allProjects, needState.project)}${projects.map(p => opt(p, p, needState.project)).join('')}</select>
+      <button type="button" class="btn primary" id="need-add">${icon('plus')}${esc(t.add)}</button>
+    </div>
+    <div class="need-list">${rows.length ? rows.map(needCard).join('') : `<div class="empty"><p>${esc(all.length ? t.noMatch : t.empty)}</p></div>`}</div>`;
+}
+function needCard(n) {
+  const t = NT();
+  const total = n.price ? n.price * n.quantity : 0;
+  const statusSel = `<select class="need-status-select st-${n.status}" data-need-status="${n.id}" aria-label="${esc(t.status)}">${NEED_STATUSES.map(s => `<option value="${s}"${s === n.status ? ' selected' : ''}>${esc(t.st[s])}</option>`).join('')}</select>`;
+  return `<article class="need-card pri-${n.priority}${NEED_OPEN.includes(n.status) ? '' : ' closed'}">
+    <div class="need-top"><span class="need-pri pri-${n.priority}">${esc(t.pri[n.priority])}</span><span class="code">#${n.id}</span></div>
+    <h3>${esc(n.name)}</h3>
+    <div class="need-meta"><strong>${fmt(n.quantity)} ${esc(tUnit(n.unit))}</strong>${n.project ? `<span class="need-project">${esc(n.project)}</span>` : ''}${total ? `<span>${money(n.price)} ₸ × ${fmt(n.quantity)} = <strong>${money(total)} ₸</strong></span>` : ''}</div>
+    ${n.reason ? `<p class="need-reason">${esc(n.reason)}</p>` : ''}
+    <div class="need-foot"><span class="muted">${n.requested_by ? esc(n.requested_by) + ' · ' : ''}${esc((n.created_at || '').slice(0, 10))}</span>${n.link ? `<a href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">${esc(t.open)} ↗</a>` : ''}</div>
+    <div class="need-actions">${statusSel}${n.status === 'bought' ? `<button type="button" class="btn compact" data-need-stock="${n.id}">${icon('box')}${esc(t.toStock)}</button>` : ''}<button type="button" class="icon-btn" data-need-edit="${n.id}" aria-label="${esc(t.edit)}">${icon('edit')}</button></div>
+  </article>`;
+}
+function openNeed(id = null) {
+  requireAuth(() => {
+    const t = NT();
+    const n = id ? needState.list.find(x => x.id === id) : null;
+    needState.editId = n ? n.id : null;
+    const form = $('#need-form');
+    form.dataset.requestId = uid();
+    const projects = [...new Set(needState.list.map(x => x.project).filter(Boolean))].sort();
+    const v = (k, d = '') => esc(n ? (n[k] ?? d) : d);
+    form.innerHTML = `
+      <div class="dialog-head"><h2 id="need-title">${esc(n ? t.edit : t.newTitle)}</h2><button type="button" class="icon-btn" data-close aria-label="${esc(t.cancel)}">${icon('close')}</button></div>
+      <div class="dialog-body need-form-body">
+        <label class="full">${esc(t.name)} *<input name="name" required maxlength="200" placeholder="${esc(t.namePh)}" value="${v('name')}"></label>
+        <label>${esc(t.qty)} *<input name="quantity" type="number" min="0.001" step="any" required inputmode="decimal" value="${v('quantity', '1')}"></label>
+        <label>${esc(t.unit)}<select name="unit">${state.units.map(u => `<option value="${esc(u)}"${(n ? n.unit : 'adet') === u ? ' selected' : ''}>${esc(tUnit(u))}</option>`).join('')}</select></label>
+        <fieldset class="full need-pri-pick"><legend>${esc(t.priority)}</legend>${NEED_PRIORITIES.map(p => `<label class="pri-${p}"><input type="radio" name="priority" value="${p}"${(n ? n.priority : 'normal') === p ? ' checked' : ''}><span><strong>${esc(t.pri[p])}</strong><small>${esc(t.priHint[p])}</small></span></label>`).join('')}</fieldset>
+        <label class="full">${esc(t.project)}<input name="project" maxlength="200" list="need-projects" placeholder="${esc(t.projectPh)}" value="${v('project')}"><datalist id="need-projects">${projects.map(p => `<option value="${esc(p)}">`).join('')}</datalist></label>
+        <label class="full">${esc(t.reason)}<textarea name="reason" rows="3" maxlength="4000" placeholder="${esc(t.reasonPh)}">${v('reason')}</textarea></label>
+        <label>${esc(t.price)}<input name="price" type="number" min="0" step="1" inputmode="numeric" value="${n && n.price ? n.price : ''}"></label>
+        <label>${esc(t.by)}<input name="requested_by" maxlength="100" value="${v('requested_by')}"></label>
+        <label class="full">${esc(t.link)}<input name="link" type="url" maxlength="1000" placeholder="https://…" value="${v('link')}"></label>
+        ${n ? `<label class="full">${esc(t.status)}<select name="status">${NEED_STATUSES.map(s => `<option value="${s}"${s === n.status ? ' selected' : ''}>${esc(t.st[s])}</option>`).join('')}</select></label>` : ''}
+        <p id="need-error" class="form-error full" role="alert" hidden></p>
+      </div>
+      <div class="dialog-footer">${n ? `<button type="button" class="btn danger" id="need-delete">${icon('trash')}${esc(t.del)}</button>` : ''}<span class="spacer"></span><button type="button" class="btn" data-close>${esc(t.cancel)}</button><button type="submit" class="btn primary">${esc(t.save)}</button></div>`;
+    $('#need-dialog').showModal();
+    setTimeout(() => form.elements.name.focus(), 30);
+  });
+}
+async function saveNeed(event) {
+  event.preventDefault();
+  const t = NT();
+  const form = $('#need-form');
+  const f = form.elements;
+  const err = $('#need-error');
+  err.hidden = true;
+  const body = {name:f.name.value, quantity:f.quantity.value, unit:f.unit.value, priority:form.querySelector('input[name="priority"]:checked')?.value || 'normal',
+    project:f.project.value, reason:f.reason.value, price:f.price.value || 0, link:f.link.value.trim(), requested_by:f.requested_by.value};
+  const n = needState.editId ? needState.list.find(x => x.id === needState.editId) : null;
+  busy(form, true);
+  try {
+    if (n) await api('/api/needs/' + n.id, {method:'PATCH', body:JSON.stringify({...body, status:f.status.value, version:n.version})});
+    else await api('/api/needs', {method:'POST', body:JSON.stringify({...body, request_id:form.dataset.requestId})});
+    $('#need-dialog').close();
+    await loadNeeds(); renderNeeds(); toast(t.saved);
+  } catch (e) { err.textContent = e.message; err.hidden = false; }
+  finally { busy(form, false); }
+}
+async function setNeedStatus(id, status) {
+  const n = needState.list.find(x => x.id === id);
+  if (!n || n.status === status) return;
+  try { await api('/api/needs/' + id, {method:'PATCH', body:JSON.stringify({...n, status, version:n.version})}); toast(NT().saved); }
+  catch (e) { toast(e.message, true); }
+  await loadNeeds(); renderNeeds();
+}
+async function deleteNeed() {
+  const t = NT();
+  const id = needState.editId;
+  if (!id || !await confirmAction(t.del, t.delConfirm, t.del)) return;
+  try { await api('/api/needs/' + id, {method:'DELETE'}); $('#need-dialog').close(); await loadNeeds(); renderNeeds(); toast(t.deleted); }
+  catch (e) { toast(e.message, true); }
+}
+function needToStock(id) {
+  const n = needState.list.find(x => x.id === id);
+  if (!n) return;
+  requireAuth(() => {
+    _openItemModal(null);
+    const f = $('#item-form').elements;
+    f.name.value = n.name;
+    f.quantity.value = n.quantity;
+    f.unit.value = n.unit;
+    f.notes.value = [n.project, n.reason].filter(Boolean).join(' — ');
+  });
+}
+function needEvents() {
+  const root = $('#needs-view');
+  root.addEventListener('input', e => {
+    if (e.target.id === 'need-search') { needState.query = e.target.value; const pos = e.target.selectionStart; renderNeeds(); const s = $('#need-search'); s.focus(); s.setSelectionRange(pos, pos); }
+  });
+  root.addEventListener('change', e => {
+    if (e.target.id === 'need-status-filter') needState.status = e.target.value;
+    else if (e.target.id === 'need-priority-filter') needState.priority = e.target.value;
+    else if (e.target.id === 'need-project-filter') needState.project = e.target.value;
+    else if (e.target.dataset.needStatus) {
+      const id = Number(e.target.dataset.needStatus), status = e.target.value;
+      if (!state.adminKey) { renderNeeds(); requireAuth(() => setNeedStatus(id, status)); } else setNeedStatus(id, status);
+      return;
+    } else return;
+    renderNeeds();
+  });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.id === 'need-add') openNeed();
+    else if (b.dataset.needEdit) openNeed(Number(b.dataset.needEdit));
+    else if (b.dataset.needStock) needToStock(Number(b.dataset.needStock));
+    else if (b.dataset.needFilter) {
+      const f = b.dataset.needFilter;
+      if (f === 'urgent') { needState.status = 'open'; needState.priority = 'urgent'; }
+      else { needState.status = f; needState.priority = ''; }
+      renderNeeds();
+    }
+  });
+  $('#need-form').addEventListener('submit', saveNeed);
+  $('#need-dialog').addEventListener('click', e => {
+    if (e.target.closest('[data-close]')) $('#need-dialog').close();
+    else if (e.target.closest('#need-delete')) deleteNeed();
+  });
+}
 Object.assign(UI.kz, {navCam:'Камералар', camTitle:'Шеберхана камералары', camAgo:'сек бұрын', camStale:'Камера жауап бермей тұр', camNone:'Камера табылмады', camOffline:'Камералар тек сервер қосулы кезде көрінеді', camConnecting:'Қосылуда…', camLive:'Тікелей', camPhoto:'Сурет', camBoth:'Екеуі', camLow:'360p · жылдам', camHigh:'720p · сапалы', camBothHint:'Екі камера бірге баяулауы мүмкін — біреуін таңдаған жылдамырақ.'});
 Object.assign(UI.ru, {navCam:'Камеры', camTitle:'Камеры мастерской', camAgo:'сек назад', camStale:'Камера не отвечает', camNone:'Камеры не найдены', camOffline:'Камеры доступны только при работающем сервере', camConnecting:'Подключение…', camLive:'Онлайн', camPhoto:'Фото', camBoth:'Обе', camLow:'360p · быстро', camHigh:'720p · чётко', camBothHint:'Две камеры сразу могут тормозить — одна работает быстрее.'});
 Object.assign(UI.tr, {navCam:'Kameralar', camTitle:'Atölye kameraları', camAgo:'sn önce', camStale:'Kamera yanıt vermiyor', camNone:'Kamera bulunamadı', camOffline:'Kameralar yalnızca sunucu açıkken görünür', camConnecting:'Bağlanıyor…', camLive:'Canlı', camPhoto:'Fotoğraf', camBoth:'İkisi', camLow:'360p · hızlı', camHigh:'720p · net', camBothHint:'İki kamera birlikte yavaşlayabilir — tek kamera daha akıcıdır.'});
@@ -893,6 +1120,7 @@ function events() {
   document.addEventListener('error', remoteImageFallback, true);
   $$('.nav[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
   $('#camera-btn').addEventListener('click',openCameras);
+  needEvents();
   $('#camera-dialog').addEventListener('close',stopCameras);
   $('#camera-dialog').addEventListener('click',cameraControl);
   document.addEventListener('visibilitychange',()=>{if($('#camera-dialog').open)document.hidden?stopCameras():renderCameras();});
@@ -955,6 +1183,7 @@ async function boot() {
     const data=await api('/api/bootstrap');state.token=data.token;state.items=data.items;state.units=data.units||state.units;state.ready=true;
     renderUnits();
     connected(true);options();stats();render();
+    loadNeeds();
   }catch(e){
     try {
       const snapResp = await fetch('data_snapshot.json', {cache:'no-store'});
