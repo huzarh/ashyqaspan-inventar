@@ -37,9 +37,9 @@
   <link rel="icon" href="logo.png" type="image/png" sizes="225x225">
   <link rel="apple-touch-icon" href="logo.png">
   <link rel="manifest" href="site.webmanifest">
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Ashyq Aspan — Инженерлік шеберхана қоймасы және есебі","alternateName":"Инвентарь инженерной мастерской Ashyq Aspan Foundation","description":"Ashyq Aspan Foundation инженерлік шеберхана қоймасы және заттар есебі: 3D-принтер, электроника, өлшеу аспаптары мен құрал-саймандар тізімдемесі (ҚАЗ / РУС).","url":"https://huzarh.github.io/ashyqaspan-inventar/","image":"https://huzarh.github.io/ashyqaspan-inventar/og-cover.jpg","applicationCategory":"BusinessApplication","operatingSystem":"All","inLanguage":["kk","ru"],"publisher":{"@type":"Organization","name":"Ashyq Aspan Foundation","logo":{"@type":"ImageObject","url":"https://huzarh.github.io/ashyqaspan-inventar/logo.png"}}}</script>
-  <script src="app.js?v=17" defer></script>
+  <script src="app.js?v=19" defer></script>
 </head>
 <body>
 <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
@@ -136,6 +136,7 @@
 
 <dialog id="detail-dialog" class="drawer" aria-labelledby="detail-title"><div class="dialog-head"><div><div class="eyebrow" id="detail-code"></div><h2 id="detail-title">Зат туралы толық мәлімет</h2></div><button class="icon-btn" data-close aria-label="Жабу"><svg class="icon"><use href="#i-close"/></svg></button></div><div id="detail-content" class="dialog-body"></div></dialog>
 
+<dialog id="image-viewer" class="image-viewer" aria-label="image"><button type="button" class="icon-btn viewer-close" data-close aria-label="close"><svg class="icon"><use href="#i-close"/></svg></button><button type="button" class="viewer-nav" id="viewer-prev" aria-label="previous">‹</button><figure><img id="viewer-img" alt=""><figcaption id="viewer-caption"></figcaption></figure><button type="button" class="viewer-nav" id="viewer-next" aria-label="next">›</button></dialog>
 <dialog id="project-dialog" class="need-dialog project-dialog" aria-label="project"><form id="project-form" novalidate></form></dialog>
 <dialog id="entry-dialog" class="need-dialog" aria-label="entry"><form id="entry-form" novalidate></form></dialog>
 <dialog id="need-dialog" class="need-dialog" aria-labelledby="need-title"><form id="need-form" novalidate></form></dialog>

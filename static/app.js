@@ -774,7 +774,7 @@ const PROJECT_TEXT = {
     fFocus:'Қазір не істеліп жатыр', fNext:'Келесі қадамдар', fEval:'Жалпы бағалау (кемшіліктері, жақсартылатын жерлері)', fTech:'Технологиялар (үтір арқылы)',
     fHw:'Жабдықтар (мәтін)', fItems:'Қоймадан жабдық таңдау', fCover:'Мұқаба суреті', fKind:'Жазба түрі', fDate:'Күні', fETitle:'Тақырып',
     fResult:'Нәтиже (қысқа, сандармен)', fBody:'Толығырақ (журнал үзінділері, байқаулар)', fImages:'Суреттер', mdHint:'**қалың**, `код`, ```код блогы```, «- » тізім',
-    offline:'Жобалар тек сервер қосулы кезде көрінеді.', share:'Сілтемені көшіру', copied:'Сілтеме көшірілді',
+    offline:'Жобалар тек сервер қосулы кезде көрінеді.', share:'Сілтемені көшіру', copied:'Сілтеме көшірілді', gallery:'Галерея', cover:'Мұқаба',
     st:{idea:'Идея', research:'Зерттеу', prototype:'Прототип', testing:'Сынақта', working:'Жұмыс істейді', paper:'Мақала', paused:'Тоқтатылған', done:'Аяқталды'},
     kind:{progress:'Прогресс', test:'Тест', issue:'Мәселе', decision:'Шешім', evaluation:'Бағалау', milestone:'Кезең'}},
   ru: {nav:'Проекты', page:['Проекты', 'Проекты и НИОКР', 'Цель, текущий этап, испытания, проблемы и нужное оборудование каждого проекта — в одном месте.', ''],
@@ -790,7 +790,7 @@ const PROJECT_TEXT = {
     fFocus:'Над чем работаем сейчас', fNext:'Следующие шаги', fEval:'Общая оценка (недостатки, что улучшить)', fTech:'Технологии (через запятую)',
     fHw:'Оборудование (текст)', fItems:'Выбрать оборудование со склада', fCover:'Обложка', fKind:'Тип записи', fDate:'Дата', fETitle:'Заголовок',
     fResult:'Результат (кратко, с цифрами)', fBody:'Подробнее (фрагменты логов, наблюдения)', fImages:'Изображения', mdHint:'**жирный**, `код`, ```блок кода```, «- » список',
-    offline:'Проекты видны только когда сервер работает.', share:'Копировать ссылку', copied:'Ссылка скопирована',
+    offline:'Проекты видны только когда сервер работает.', share:'Копировать ссылку', copied:'Ссылка скопирована', gallery:'Галерея', cover:'Обложка',
     st:{idea:'Идея', research:'Исследование', prototype:'Прототип', testing:'Испытания', working:'Работает', paper:'Статья', paused:'Приостановлен', done:'Завершён'},
     kind:{progress:'Прогресс', test:'Тест', issue:'Проблема', decision:'Решение', evaluation:'Оценка', milestone:'Этап'}},
   tr: {nav:'Projeler', page:['Projeler', 'Projeler ve Ar-Ge çalışmaları', 'Her projenin amacı, aşaması, testleri, sorunları ve gereken ekipmanları — tek yerde.', ''],
@@ -806,7 +806,7 @@ const PROJECT_TEXT = {
     fFocus:'Şu an ne üzerinde çalışılıyor', fNext:'Sonraki adımlar', fEval:'Genel değerlendirme (eksikler, geliştirilecekler)', fTech:'Teknolojiler (virgülle)',
     fHw:'Ekipmanlar (metin)', fItems:'Envanterden ekipman seç', fCover:'Kapak görseli', fKind:'Kayıt türü', fDate:'Tarih', fETitle:'Başlık',
     fResult:'Sonuç (kısa, sayılarla)', fBody:'Ayrıntı (log parçaları, gözlemler)', fImages:'Görseller', mdHint:'**kalın**, `kod`, ```kod bloğu```, «- » liste',
-    offline:'Projeler yalnızca sunucu açıkken görünür.', share:'Linki kopyala', copied:'Link kopyalandı',
+    offline:'Projeler yalnızca sunucu açıkken görünür.', share:'Linki kopyala', copied:'Link kopyalandı', gallery:'Galeri', cover:'Kapak',
     st:{idea:'Fikir', research:'Araştırma', prototype:'Prototip', testing:'Testte', working:'Çalışıyor', paper:'Makale', paused:'Durdu', done:'Bitti'},
     kind:{progress:'İlerleme', test:'Test', issue:'Sorun', decision:'Karar', evaluation:'Değerlendirme', milestone:'Kilometre taşı'}},
 };
@@ -911,6 +911,7 @@ function projectDetail(p) {
       <span class="proj-status st-${p.status}">${esc(t.st[p.status])}</span> <small class="muted">${esc(p.category)}</small>
       <h2>${esc(p.title)}</h2><p class="proj-summary">${esc(p.summary)}</p>
       <p class="muted">${p.started_on ? `${esc(t.started)}: ${esc(p.started_on)} · ` : ''}${esc(t.updated)}: ${esc((p.updated_at || '').slice(0, 10))}</p></div></header>
+    ${projectGallery(p)}
     <div class="proj-columns"><div class="proj-main">
       ${sec(t.secGoal, p.goal ? md(p.goal) : '')}
       ${sec(t.secFocus, p.current_focus ? md(p.current_focus) : '')}
@@ -933,8 +934,36 @@ function entryCard(e) {
   return `<article class="entry kind-${e.kind}"><div class="entry-dot"></div><div class="entry-content">
     <div class="entry-top"><span class="entry-kind kind-${e.kind}">${esc(t.kind[e.kind])}</span><time>${esc(e.happened_on)}</time><button type="button" class="icon-btn" data-entry-edit="${e.id}" aria-label="${esc(t.editEntry)}">${icon('edit')}</button></div>
     <h4>${esc(e.title)}</h4>${e.result ? `<p class="entry-result">${esc(e.result)}</p>` : ''}${e.body ? `<div class="entry-body">${md(e.body)}</div>` : ''}
-    ${e.images.length ? `<div class="entry-images">${e.images.map(n => `<a href="${esc(photoSrc(n))}" target="_blank" rel="noopener"><img src="${esc(photoSrc(n))}" alt="" loading="lazy"></a>`).join('')}</div>` : ''}</div></article>`;
+    ${e.images.length ? `<div class="entry-images">${e.images.map(n => `<button type="button" class="entry-image" data-view-image="${esc(n)}"><img src="${esc(photoSrc(n))}" alt="${esc(e.title)}" loading="lazy"></button>`).join('')}</div>` : ''}</div></article>`;
 }
+function galleryItems(p) {
+  const t = PT();
+  const items = p.cover ? [{name:p.cover, caption:t.cover}] : [];
+  for (const e of [...p.entries].sort((a, b) => a.happened_on.localeCompare(b.happened_on) || a.id - b.id))
+    for (const n of e.images) items.push({name:n, caption:`${e.happened_on} · ${t.kind[e.kind]} · ${e.title}`});
+  return items;
+}
+function projectGallery(p) {
+  const t = PT();
+  const items = galleryItems(p);
+  if (items.length < 2) return '';
+  return `<section class="proj-gallery"><h3>${esc(t.gallery)} (${items.length})</h3><div class="proj-gallery-strip">${items.map(it =>
+    `<button type="button" data-view-image="${esc(it.name)}" title="${esc(it.caption)}"><img src="${esc(photoSrc(it.name))}" alt="${esc(it.caption)}" loading="lazy"></button>`).join('')}</div></section>`;
+}
+const viewer = {items:[], index:0};
+function openViewer(name) {
+  viewer.items = galleryItems(projState.current);
+  viewer.index = Math.max(0, viewer.items.findIndex(it => it.name === name));
+  showViewerImage();
+  $('#image-viewer').showModal();
+}
+function showViewerImage() {
+  const it = viewer.items[viewer.index];
+  if (!it) return;
+  $('#viewer-img').src = photoSrc(it.name);
+  $('#viewer-caption').textContent = `${viewer.index + 1} / ${viewer.items.length} — ${it.caption}`;
+}
+function stepViewer(d) { viewer.index = (viewer.index + d + viewer.items.length) % viewer.items.length; showViewerImage(); }
 function openProjectForm(id = null) {
   requireAuth(() => {
     const t = PT();
@@ -1040,12 +1069,13 @@ function projectEvents() {
   });
   root.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.projOpen) openProject(Number(e.target.dataset.projOpen)); });
   root.addEventListener('click', async e => {
-    const el = e.target.closest('[data-proj-open],[data-proj-status],[data-entry-kind],[data-entry-edit],button');
+    const el = e.target.closest('[data-proj-open],[data-proj-status],[data-entry-kind],[data-entry-edit],[data-view-image],button');
     if (!el) return;
     if (el.dataset.projOpen) openProject(Number(el.dataset.projOpen));
     else if (el.dataset.projStatus) { projState.status = projState.status === el.dataset.projStatus ? '' : el.dataset.projStatus; renderProjects(); }
     else if (el.dataset.entryKind !== undefined) { projState.kind = el.dataset.entryKind; renderProjects(); }
     else if (el.dataset.entryEdit) openEntryForm(Number(el.dataset.entryEdit));
+    else if (el.dataset.viewImage) openViewer(el.dataset.viewImage);
     else if (el.id === 'proj-add') openProjectForm();
     else if (el.id === 'proj-back') { projState.current = null; history.pushState(null, '', projectHash('')); renderProjects(); }
     else if (el.id === 'proj-edit') openProjectForm(projState.current.id);
@@ -1076,6 +1106,16 @@ function projectEvents() {
       if (!await confirmAction(t.del, t.delEntry, t.del)) return;
       try { await api('/api/entries/' + projState.entryId, {method:'DELETE'}); $(id).close(); await openProject(projState.current.id, false); toast(t.deleted); } catch (x) { toast(x.message, true); }
     }
+  });
+  $('#image-viewer').addEventListener('click', e => {
+    if (e.target.closest('#viewer-prev')) stepViewer(-1);
+    else if (e.target.closest('#viewer-next')) stepViewer(1);
+    else if (e.target.closest('[data-close]') || e.target.id === 'image-viewer') $('#image-viewer').close();
+  });
+  document.addEventListener('keydown', e => {
+    if (!$('#image-viewer').open) return;
+    if (e.key === 'ArrowLeft') stepViewer(-1);
+    else if (e.key === 'ArrowRight') stepViewer(1);
   });
   window.addEventListener('popstate', () => {
     const m = location.hash.match(/^#\/projects(?:\/([a-z0-9-]+))?$/);
