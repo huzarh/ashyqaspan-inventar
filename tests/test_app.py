@@ -179,6 +179,55 @@ class StoreTests(unittest.TestCase):
         self.store.restore(old_format)  # older backups leave the purchase list alone
         self.assertEqual(self.store.needs(), saved)
 
+    def project_body(self, **changes):
+        data = dict(request_id=str(uuid.uuid4()), slug='meteor75-mono-nav', title='Meteor75 Mono-Nav', status='paper',
+                    category='Автономия', summary='Бір камерамен навигация', goal='GPS жоқ', technologies='MuJoCo, YOLO11n-pose',
+                    started_on='2026-10-25', item_ids=[], cover=PNG)
+        data.update(changes)
+        return data
+
+    def test_projects_and_journal(self):
+        item = self.store.create(body())
+        p = self.store.project_create(self.project_body(item_ids=[item['id'], item['id']]))
+        self.assertEqual((p['status'], p['item_ids'], p['version']), ('paper', [item['id']], 1))
+        self.assertTrue(p['cover'].endswith('.png'))
+        with self.assertRaises(app.Problem) as dup:
+            self.store.project_create(self.project_body())  # same slug
+        self.assertEqual(dup.exception.status, 409)
+        e = self.store.entry_create(p['id'], dict(request_id=str(uuid.uuid4()), kind='test', happened_on='2026-10-26',
+                                                  title='ALEM gate', result='84.3% APPROVED', images=[PNG]))
+        self.assertEqual((e['kind'], len(e['images'])), ('test', 1))
+        e2 = self.store.entry_edit(e['id'], dict(e, title='ALEM gate v4'))  # existing image name is kept
+        self.assertEqual((e2['title'], e2['images'], e2['version']), ('ALEM gate v4', e['images'], 2))
+        listed = self.store.projects()[0]
+        self.assertEqual((listed['entry_count'], listed['test_count'], listed['last_entry_on']), (1, 1, '2026-10-26'))
+        self.assertEqual(self.store.project(p['id'])['entries'][0]['title'], 'ALEM gate v4')
+        p2 = self.store.project_edit(p['id'], dict(p, status='paused', cover=p['cover']))
+        self.assertEqual((p2['status'], p2['cover']), ('paused', p['cover']))
+        with self.assertRaises(app.Problem):
+            self.store.project_edit(p['id'], dict(p, status='done'))  # stale version
+        for bad in (dict(slug='Bad Slug'), dict(status='finished'), dict(started_on='26.10.2026'), dict(item_ids=['x'])):
+            with self.assertRaises(app.Problem, msg=str(bad)):
+                self.store.project_create(self.project_body(slug='x-' + str(len(str(bad))), **{k: v for k, v in bad.items() if k != 'slug'}) if 'slug' not in bad else self.project_body(**bad))
+        with self.assertRaises(app.Problem):
+            self.store.entry_create(p['id'], dict(request_id='r', kind='rumour', happened_on='2026-10-26', title='x'))
+        self.store.project_delete(p['id'])
+        self.assertEqual(self.store.projects(), [])
+        with self.assertRaises(app.Problem):
+            self.store.entry_edit(e['id'], dict(e2))  # entries went with the project
+
+    def test_projects_survive_backup_restore(self):
+        p = self.store.project_create(self.project_body())
+        self.store.entry_create(p['id'], dict(request_id=str(uuid.uuid4()), kind='issue', happened_on='2026-10-27', title='Bug', images=[PNG]))
+        snapshot = self.store.backup()
+        saved = (self.store.projects(), self.store.project(p['id']))
+        self.store.project_create(self.project_body(slug='other'))
+        self.assertEqual(self.store.restore(snapshot)['projects'], 1)
+        self.assertEqual((self.store.projects(), self.store.project(p['id'])), saved)
+        old = {k: v for k, v in snapshot.items() if k not in ('projects', 'entries')}
+        self.store.restore(old)  # older backups leave projects alone
+        self.assertEqual(self.store.projects(), saved[0])
+
     def test_bad_photo_rejected(self):
         for image in ('not base64', base64.b64encode(b'<svg onload="x"/>').decode()):
             with self.assertRaises(app.Problem):
@@ -192,7 +241,7 @@ class StoreTests(unittest.TestCase):
         saved_items, saved_moves = self.store.items(), self.store.movements()
         self.store.create(body(name='Diğer ürün'))
         result = self.store.restore(snapshot)
-        self.assertEqual(result, dict(items=1, movements=2, needs=0))
+        self.assertEqual(result, dict(items=1, movements=2, needs=0, projects=0))
         self.assertEqual(self.store.items(), saved_items)
         self.assertEqual(self.store.movements(), saved_moves)
         self.assertTrue(list((self.store.directory/'otomatik_yedekler').glob('*.sqlite3')))
@@ -422,6 +471,24 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(self.request('/api/recordings/cam1/2026-11-09_11-00-00.mp4?t=' + token)[0], 404)
         finally:
             self.server.cameras = app.Cameras()
+
+    def test_projects_http_read_public_write_admin(self):
+        h = {'X-App-Token': self.server.token, 'Origin': self.base}
+        a = dict(h, **{'X-Admin-Key': 'ashyqaspan'})
+        req = dict(request_id=str(uuid.uuid4()), slug='http-proj', title='HTTP жоба', status='idea')
+        self.assertEqual(self.request('/api/projects', req, h)[0], 403)
+        status, raw, _ = self.request('/api/projects', req, a)
+        self.assertEqual(status, 201)
+        pid = json.loads(raw)['id']
+        entry = dict(request_id=str(uuid.uuid4()), kind='progress', happened_on='2026-11-09', title='Бастадық')
+        self.assertEqual(self.request('/api/projects/%d/entries' % pid, entry, h)[0], 403)
+        self.assertEqual(self.request('/api/projects/%d/entries' % pid, entry, a)[0], 201)
+        status, raw, _ = self.request('/api/projects/%d' % pid)
+        self.assertEqual((status, len(json.loads(raw)['entries'])), (200, 1))
+        self.assertIn(pid, [p['id'] for p in json.loads(self.request('/api/projects')[1])])
+        self.assertEqual(self.request('/api/projects/%d' % pid, None, h, method='DELETE')[0], 403)
+        self.assertEqual(self.request('/api/projects/%d' % pid, None, a, method='DELETE')[0], 200)
+        self.assertEqual(self.request('/api/projects/%d' % pid)[0], 404)
 
     def test_host_and_file_traversal_guards(self):
         self.assertEqual(self.request('/api/bootstrap', headers={'Host': 'evil.invalid'})[0], 403)

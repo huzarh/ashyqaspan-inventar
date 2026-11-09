@@ -116,6 +116,18 @@ def build():
             if src_photo.exists():
                 shutil.copy2(src_photo, docs_uploads / fname)
 
+    # Project covers and journal images live on the server; copies placed in docs/uploads are served from the
+    # Pages CDN, so keep them (the frontend falls back to the server for images missing here).
+    for project in store.projects():
+        project_images = [project["cover"]] if project["cover"] else []
+        project_images += [n for e in store.project(project["id"])["entries"] for n in e["images"]]
+        for fname in project_images:
+            active_files.add(fname)
+            if (UPLOADS_DIR / fname).exists():
+                shutil.copy2(UPLOADS_DIR / fname, docs_uploads / fname)
+    active_files |= {p.name for p in docs_uploads.iterdir() if p.is_file() and app.PHOTO_RE.fullmatch(p.name)
+                     and not (UPLOADS_DIR / p.name).exists()}
+
     for existing in docs_uploads.iterdir():
         if existing.is_file() and existing.name not in active_files:
             existing.unlink()

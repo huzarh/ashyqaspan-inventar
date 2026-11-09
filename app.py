@@ -36,6 +36,10 @@ MAX_BACKUP = 120 * 1024 * 1024
 PHOTO_RE = re.compile(r'^[a-f0-9]{64}\.(jpg|png|webp)$')
 NEED_PRIORITIES = ('urgent', 'high', 'normal', 'low')
 NEED_STATUSES = ('new', 'approved', 'ordered', 'bought', 'rejected')
+PROJECT_STATUSES = ('idea', 'research', 'prototype', 'testing', 'working', 'paper', 'paused', 'done')
+ENTRY_KINDS = ('progress', 'test', 'issue', 'decision', 'evaluation', 'milestone')
+DATE_RE = re.compile(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+SLUG_RE = re.compile(r'^[a-z0-9]+(-[a-z0-9]+)*$')
 SOURCE_RE = re.compile(r'^IMG_[0-9]{4}\.jpeg$')
 ADMIN_KEY = os.environ.get('ATOLYE_ADMIN_KEY', 'ashyqaspan')
 CORS_HEADERS = 'Content-Type, X-App-Token, X-Admin-Key, X-Confirm-Restore'
@@ -120,6 +124,21 @@ CREATE TABLE IF NOT EXISTS movements (
  note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, request_id TEXT NOT NULL UNIQUE
 );
 CREATE INDEX IF NOT EXISTS movement_item_idx ON movements(item_id,id);
+CREATE TABLE IF NOT EXISTS projects (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
+ category TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '',
+ goal TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '', current_focus TEXT NOT NULL DEFAULT '',
+ next_steps TEXT NOT NULL DEFAULT '', evaluation TEXT NOT NULL DEFAULT '', technologies TEXT NOT NULL DEFAULT '',
+ hardware TEXT NOT NULL DEFAULT '', cover TEXT, started_on TEXT NOT NULL DEFAULT '', item_ids TEXT NOT NULL DEFAULT '[]',
+ version INTEGER NOT NULL DEFAULT 1, created_token TEXT UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS entries (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+ kind TEXT NOT NULL, happened_on TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
+ result TEXT NOT NULL DEFAULT '', images TEXT NOT NULL DEFAULT '[]', version INTEGER NOT NULL DEFAULT 1,
+ created_token TEXT UNIQUE, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS entry_project_idx ON entries(project_id, happened_on);
 CREATE TABLE IF NOT EXISTS needs (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  name TEXT NOT NULL, quantity INTEGER NOT NULL CHECK(quantity>0), unit TEXT NOT NULL,
@@ -412,15 +431,178 @@ class Store:
             db.execute('DELETE FROM needs WHERE id=?', (ident,))
         return {'ok': True}
 
+    # R&D projects and their journal (progress, tests, issues, decisions, evaluations).
+    def _image_list(self, value, field):
+        """Accepts existing upload names or new base64 images; returns stored file names."""
+        if not isinstance(value, list) or len(value) > 12:
+            raise Problem('%s: en fazla 12 görsel.' % field)
+        out = []
+        for v in value:
+            if isinstance(v, str) and PHOTO_RE.fullmatch(v) and (self.uploads/v).is_file():
+                out.append(v)
+            else:
+                out.append(self._save_photo(v))
+        return out
+
+    def _project_fields(self, body):
+        slug = text(body.get('slug', ''), 'Kısa ad', 80, True).lower()
+        if not SLUG_RE.fullmatch(slug):
+            raise Problem('Kısa ad yalnızca küçük harf, rakam ve tire içerebilir.')
+        status = body.get('status', 'idea')
+        if status not in PROJECT_STATUSES:
+            raise Problem('Proje durumu geçersiz.')
+        started = text(body.get('started_on', ''), 'Başlangıç', 10)
+        if started and not DATE_RE.fullmatch(started):
+            raise Problem('Tarih YYYY-AA-GG biçiminde olmalı.')
+        item_ids = body.get('item_ids', [])
+        if not isinstance(item_ids, list) or len(item_ids) > 500 or any(type(i) is not int for i in item_ids):
+            raise Problem('Ekipman listesi geçersiz.')
+        cover = body.get('cover')
+        if cover:
+            cover = self._image_list([cover], 'Kapak')[0]
+        f = dict(slug=slug, title=text(body.get('title', ''), 'Proje adı', 200, True), status=status,
+                 category=text(body.get('category', ''), 'Kategori', 100), started_on=started,
+                 item_ids=json.dumps(sorted(set(item_ids))), cover=cover or None)
+        for key, limit in (('summary', 600), ('goal', 4000), ('description', 20000), ('current_focus', 4000),
+                           ('next_steps', 4000), ('evaluation', 8000), ('technologies', 1000), ('hardware', 2000)):
+            f[key] = text(body.get(key, ''), key, limit)
+        return f
+
+    @staticmethod
+    def _project_out(row):
+        r = dict(row)
+        r['item_ids'] = json.loads(r['item_ids'])
+        r.pop('created_token', None)
+        return r
+
+    def projects(self):
+        with self.lock, self.connect() as db:
+            counts = {r['project_id']: (r['n'], r['tests'], r['last'])
+                      for r in db.execute("SELECT project_id, COUNT(*) n, SUM(kind='test') tests, MAX(happened_on) last FROM entries GROUP BY project_id")}
+            out = []
+            for row in db.execute('SELECT * FROM projects ORDER BY updated_at DESC'):
+                p = self._project_out(row)
+                n, tests, last = counts.get(p['id'], (0, 0, ''))
+                p.update(entry_count=n, test_count=tests or 0, last_entry_on=last or '')
+                out.append(p)
+            return out
+
+    def _project(self, db, ident):
+        row = db.execute('SELECT * FROM projects WHERE id=?', (ident,)).fetchone()
+        if not row:
+            raise Problem('Proje bulunamadı.', 404)
+        return row
+
+    def project(self, ident):
+        with self.lock, self.connect() as db:
+            p = self._project_out(self._project(db, ident))
+            p['entries'] = [self._entry_out(r) for r in db.execute(
+                'SELECT * FROM entries WHERE project_id=? ORDER BY happened_on DESC, id DESC', (ident,))]
+            return p
+
+    def project_create(self, body):
+        token = text(body.get('request_id', ''), 'İşlem kimliği', 100, True)
+        fields = self._project_fields(body)
+        with self.lock, self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            existing = db.execute('SELECT id FROM projects WHERE created_token=?', (token,)).fetchone()
+            if existing:
+                return self._project_out(self._project(db, existing['id']))
+            if db.execute('SELECT 1 FROM projects WHERE slug=?', (fields['slug'],)).fetchone():
+                raise Problem('Bu kısa ad başka bir projede kullanılıyor.', 409)
+            timestamp = now()
+            fields.update(created_token=token, created_at=timestamp, updated_at=timestamp)
+            cur = db.execute('INSERT INTO projects ('+','.join(fields)+') VALUES ('+','.join('?' for _ in fields)+')', tuple(fields.values()))
+            return self._project_out(self._project(db, cur.lastrowid))
+
+    def project_edit(self, ident, body):
+        fields = self._project_fields(body)
+        with self.lock, self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = self._project(db, ident)
+            if body.get('version') != row['version']:
+                raise Problem('Proje başka biri tarafından değiştirildi. Sayfayı yenileyip tekrar deneyin.', 409)
+            if db.execute('SELECT 1 FROM projects WHERE slug=? AND id<>?', (fields['slug'], ident)).fetchone():
+                raise Problem('Bu kısa ad başka bir projede kullanılıyor.', 409)
+            fields.update(version=row['version']+1, updated_at=now())
+            db.execute('UPDATE projects SET '+','.join(k+'=?' for k in fields)+' WHERE id=?', tuple(fields.values())+(ident,))
+            return self._project_out(self._project(db, ident))
+
+    def project_delete(self, ident):
+        with self.lock, self.connect() as db:
+            self._project(db, ident)
+            db.execute('DELETE FROM entries WHERE project_id=?', (ident,))
+            db.execute('DELETE FROM projects WHERE id=?', (ident,))
+        return {'ok': True}
+
+    def _entry_fields(self, body):
+        kind = body.get('kind', 'progress')
+        if kind not in ENTRY_KINDS:
+            raise Problem('Kayıt türü geçersiz.')
+        day = text(body.get('happened_on', ''), 'Tarih', 10, True)
+        if not DATE_RE.fullmatch(day):
+            raise Problem('Tarih YYYY-AA-GG biçiminde olmalı.')
+        return dict(kind=kind, happened_on=day, title=text(body.get('title', ''), 'Başlık', 300, True),
+                    body=text(body.get('body', ''), 'Metin', 30000), result=text(body.get('result', ''), 'Sonuç', 2000),
+                    images=json.dumps(self._image_list(body.get('images', []), 'Görseller')))
+
+    @staticmethod
+    def _entry_out(row):
+        r = dict(row)
+        r['images'] = json.loads(r['images'])
+        r.pop('created_token', None)
+        return r
+
+    def _entry(self, db, ident):
+        row = db.execute('SELECT * FROM entries WHERE id=?', (ident,)).fetchone()
+        if not row:
+            raise Problem('Kayıt bulunamadı.', 404)
+        return row
+
+    def entry_create(self, project_id, body):
+        token = text(body.get('request_id', ''), 'İşlem kimliği', 100, True)
+        fields = self._entry_fields(body)
+        with self.lock, self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            self._project(db, project_id)
+            existing = db.execute('SELECT id FROM entries WHERE created_token=?', (token,)).fetchone()
+            if existing:
+                return self._entry_out(self._entry(db, existing['id']))
+            timestamp = now()
+            fields.update(project_id=project_id, created_token=token, created_at=timestamp, updated_at=timestamp)
+            cur = db.execute('INSERT INTO entries ('+','.join(fields)+') VALUES ('+','.join('?' for _ in fields)+')', tuple(fields.values()))
+            db.execute('UPDATE projects SET updated_at=? WHERE id=?', (timestamp, project_id))
+            return self._entry_out(self._entry(db, cur.lastrowid))
+
+    def entry_edit(self, ident, body):
+        fields = self._entry_fields(body)
+        with self.lock, self.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = self._entry(db, ident)
+            if body.get('version') != row['version']:
+                raise Problem('Kayıt başka biri tarafından değiştirildi. Sayfayı yenileyip tekrar deneyin.', 409)
+            fields.update(version=row['version']+1, updated_at=now())
+            db.execute('UPDATE entries SET '+','.join(k+'=?' for k in fields)+' WHERE id=?', tuple(fields.values())+(ident,))
+            return self._entry_out(self._entry(db, ident))
+
+    def entry_delete(self, ident):
+        with self.lock, self.connect() as db:
+            self._entry(db, ident)
+            db.execute('DELETE FROM entries WHERE id=?', (ident,))
+        return {'ok': True}
+
     def backup(self):
         with self.lock, self.connect() as db:
             items = [dict(r) for r in db.execute('SELECT * FROM items ORDER BY id')]
             movements = [dict(r) for r in db.execute('SELECT * FROM movements ORDER BY id')]
             needs = [dict(r) for r in db.execute('SELECT * FROM needs ORDER BY id')]
-            names = {r['photo'] for r in items if r['photo']}
+            projects = [dict(r) for r in db.execute('SELECT * FROM projects ORDER BY id')]
+            entries = [dict(r) for r in db.execute('SELECT * FROM entries ORDER BY id')]
+            names = {r['photo'] for r in items if r['photo']} | {p['cover'] for p in projects if p['cover']}
+            names |= {n for e in entries for n in json.loads(e['images'])}
             images = {n: base64.b64encode((self.uploads/n).read_bytes()).decode('ascii') for n in names}
             return {'format': 'atolye-envanter', 'version': 1, 'created_at': now(), 'items': items, 'movements': movements,
-                    'needs': needs, 'images': images}
+                    'needs': needs, 'projects': projects, 'entries': entries, 'images': images}
 
     def restore(self, payload):
         # Validate everything before mutation. Restore runs in a single DB transaction.
@@ -497,6 +679,43 @@ class Store:
                              created_at=text(r.get('created_at', ''), 'Tarih', 100, True), updated_at=text(r.get('updated_at', ''), 'Tarih', 100, True))
                 need_ids.add(r['id'])
                 normalized_needs.append(clean)
+        projects_in, entries_in = payload.get('projects'), payload.get('entries')  # absent in older backups
+        normalized_projects, normalized_entries = [], []
+        image_ok = lambda n: isinstance(n, str) and PHOTO_RE.fullmatch(n) and (n in decoded or (self.uploads/n).is_file())
+        if projects_in is not None or entries_in is not None:
+            if not isinstance(projects_in, list) or not isinstance(entries_in, list) or len(projects_in) > 5000 or len(entries_in) > 200000:
+                raise Problem('Yedekte proje kayıtları geçersiz.')
+            project_ids = set()
+            for r in projects_in:
+                if not isinstance(r, dict) or any(type(r.get(k)) is not int for k in ('id', 'version')) or r['id'] in project_ids:
+                    raise Problem('Yedekte proje kaydı geçersiz.')
+                try:
+                    item_ids = json.loads(r.get('item_ids', '[]'))
+                except (TypeError, ValueError):
+                    raise Problem('Yedekte proje ekipman listesi geçersiz.')
+                clean = self._project_fields(dict(r, item_ids=item_ids, cover=None))
+                if r.get('cover') is not None and not image_ok(r['cover']):
+                    raise Problem('Yedekte proje kapağı eksik.')
+                clean.update(id=r['id'], version=r['version'], cover=r.get('cover'), created_token=r.get('created_token'),
+                             created_at=text(r.get('created_at', ''), 'Tarih', 100, True), updated_at=text(r.get('updated_at', ''), 'Tarih', 100, True))
+                project_ids.add(r['id'])
+                normalized_projects.append(clean)
+            entry_ids = set()
+            for r in entries_in:
+                if not isinstance(r, dict) or any(type(r.get(k)) is not int for k in ('id', 'project_id', 'version')) or r['id'] in entry_ids or r['project_id'] not in project_ids:
+                    raise Problem('Yedekte proje günlüğü geçersiz.')
+                try:
+                    imgs = json.loads(r.get('images', '[]'))
+                except (TypeError, ValueError):
+                    raise Problem('Yedekte günlük görselleri geçersiz.')
+                if not isinstance(imgs, list) or not all(image_ok(n) for n in imgs):
+                    raise Problem('Yedekte günlük görseli eksik.')
+                clean = self._entry_fields(dict(r, images=[]))
+                clean.update(id=r['id'], project_id=r['project_id'], version=r['version'], images=json.dumps(imgs),
+                             created_token=r.get('created_token'), created_at=text(r.get('created_at', ''), 'Tarih', 100, True),
+                             updated_at=text(r.get('updated_at', ''), 'Tarih', 100, True))
+                entry_ids.add(r['id'])
+                normalized_entries.append(clean)
         with self.lock:
             # A recoverable copy of the pre-restore database is kept automatically.
             pre = self.directory/'otomatik_yedekler'
@@ -518,10 +737,13 @@ class Store:
                 if needs is not None:
                     db.execute('DELETE FROM needs')
                     tables.append(('needs', normalized_needs))
+                if projects_in is not None:
+                    db.execute('DELETE FROM entries'); db.execute('DELETE FROM projects')
+                    tables += [('projects', normalized_projects), ('entries', normalized_entries)]
                 for table, rows in tables:
                     for r in rows:
                         db.execute('INSERT INTO '+table+' ('+','.join(r)+') VALUES ('+','.join('?' for _ in r)+')', tuple(r.values()))
-        return {'items': len(items), 'movements': len(moves), 'needs': len(normalized_needs)}
+        return {'items': len(items), 'movements': len(moves), 'needs': len(normalized_needs), 'projects': len(normalized_projects)}
 
 
 def xlsx_bytes(sheets):
@@ -718,6 +940,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(200, self.server.store.movements())
             if path == '/api/needs':
                 return self.reply(200, self.server.store.needs())
+            if path == '/api/projects':
+                return self.reply(200, self.server.store.projects())
+            match_project = re.fullmatch('/api/projects/([0-9]+)', path)
+            if match_project:
+                return self.reply(200, self.server.store.project(int(match_project.group(1))))
             if path == '/api/export.xlsx':
                 lang = parse_qs(parsed.query).get('lang', ['tr'])[0]
                 prefix = {'kz': 'Sheberhana_Tizimdemesi_', 'ru': 'Masterskaya_Inventar_'}.get(lang, 'Atolye_Envanteri_')
@@ -858,13 +1085,14 @@ class Handler(BaseHTTPRequestHandler):
                 raise Problem('Oturumu yenileyip tekrar deneyin.', 403)
             path = urlparse(self.path).path
             if self.command == 'DELETE':
-                match_del = re.fullmatch('/api/(items|needs)/([0-9]+)', path)
+                match_del = re.fullmatch('/api/(items|needs|projects|entries)/([0-9]+)', path)
                 if not match_del:
                     raise Problem('İşlem bulunamadı.', 404)
                 self.check_admin()
                 ident = int(match_del.group(2))
                 store = self.server.store
-                return self.reply(200, store.delete(ident) if match_del.group(1) == 'items' else store.need_delete(ident))
+                remove = {'items': store.delete, 'needs': store.need_delete, 'projects': store.project_delete, 'entries': store.entry_delete}
+                return self.reply(200, remove[match_del.group(1)](ident))
             maximum = MAX_BACKUP if path == '/api/restore' else 12 * 1024 * 1024
             try:
                 size = int(self.headers.get('Content-Length', '-1'))
@@ -897,6 +1125,20 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/needs' and self.command == 'POST':
                 self.check_admin(body)
                 return self.reply(201, store.need_create(body))
+            if path == '/api/projects' and self.command == 'POST':
+                self.check_admin(body)
+                return self.reply(201, store.project_create(body))
+            match_proj = re.fullmatch('/api/projects/([0-9]+)(/entries)?', path)
+            if match_proj:
+                self.check_admin(body)
+                if match_proj.group(2) and self.command == 'POST':
+                    return self.reply(201, store.entry_create(int(match_proj.group(1)), body))
+                if not match_proj.group(2) and self.command == 'PATCH':
+                    return self.reply(200, store.project_edit(int(match_proj.group(1)), body))
+            match_entry = re.fullmatch('/api/entries/([0-9]+)', path)
+            if match_entry and self.command == 'PATCH':
+                self.check_admin(body)
+                return self.reply(200, store.entry_edit(int(match_entry.group(1)), body))
             match_need = re.fullmatch('/api/needs/([0-9]+)', path)
             if match_need and self.command == 'PATCH':
                 self.check_admin(body)

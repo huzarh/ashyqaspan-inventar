@@ -322,6 +322,8 @@ function applyLangUI() {
   setTxt('#nav-arch-text', t.navArch);
   setTxt('#nav-cam-text', t.navCam);
   setTxt('#nav-needs-text', NT().nav);
+  setTxt('#nav-proj-text', PT().nav);
+  if (state.page === 'projects') { const [bread, title, description] = L().pages.projects; setTxt('#breadcrumb', bread); setTxt('#page-title', title); setTxt('#page-description', description); renderProjects(); }
   if (state.page === 'needs') { const [bread, title, description] = L().pages.needs; setTxt('#breadcrumb', bread); setTxt('#page-title', title); setTxt('#page-description', description); renderNeeds(); }
   setTxt('#camera-title', t.camTitle);
   setTxt('#sidebar-note-title', t.sideTitle);
@@ -420,17 +422,19 @@ async function refresh(includeHistory=false) {
   if(includeHistory||state.page==='history')state.moves=await api('/api/movements');
   connected(true);options();stats();render();
 }
-async function navigate(page, status='') {
+async function navigate(page, status='', projectSlug='') {
   state.page=page;state.offset=0;state.query='';state.category='';state.status=status;
   $('#search').value='';$('#category-filter').value='';$('#status-filter').value=status;
   const [bread,title,description,note]=L().pages[page];
   $('#breadcrumb').textContent=bread;$('#page-title').textContent=title;$('#page-description').textContent=description;
   $('#page-note').textContent=note;$('#page-note').hidden=!note;
   $$('.nav').forEach(n=>{n.classList.toggle('active',n.dataset.page===page);if(n.dataset.page===page)n.setAttribute('aria-current','page');else n.removeAttribute('aria-current');});
-  const needsPage=page==='needs';
-  $('#stats').hidden=page==='history'||page==='archive'||needsPage;
-  $('section.workspace:not(#needs-view)').hidden=needsPage;$('#needs-view').hidden=!needsPage;$('#bottom-note').hidden=needsPage;
+  const needsPage=page==='needs', projPage=page==='projects', ownView=needsPage||projPage;
+  $('#stats').hidden=page==='history'||page==='archive'||ownView;
+  $('section.workspace:not(#needs-view):not(#projects-view)').hidden=ownView;$('#needs-view').hidden=!needsPage;$('#projects-view').hidden=!projPage;$('#bottom-note').hidden=ownView;
+  if(!projPage&&location.hash.startsWith('#/projects'))history.replaceState(null,'',location.pathname+location.search);
   if(needsPage){await loadNeeds();renderNeeds();return;}
+  if(projPage){if(!needState.list.length)loadNeeds();await showProjects(projectSlug);return;}
   $('#view-grid').disabled=page==='history';$('#status-filter').hidden=page==='history';
   if(page==='history') {try {state.moves=await api('/api/movements');}catch(e){toast(e.message,true);}}
   render();
@@ -752,6 +756,331 @@ async function download(path, fallback, button) {
     a.href=url;a.download=response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]||fallback;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),20000);
     toast(t.fileReadyToast);
   }catch(e){toast(e.message,true);}finally{button.disabled=false;}
+}
+// R&D projects: overview, status, journal (progress / tests / issues / decisions / evaluations), equipment and needs.
+const PROJECT_STATUSES = ['idea', 'research', 'prototype', 'testing', 'working', 'paper', 'paused', 'done'];
+const ENTRY_KINDS = ['progress', 'test', 'issue', 'decision', 'evaluation', 'milestone'];
+const PROJECT_TEXT = {
+  kz: {nav:'Жобалар', page:['Жобалар', 'Жобалар және ғылыми-зерттеу жұмыстары', 'Әр жобаның мақсаты, қазіргі кезеңі, сынақтары, мәселелері және қажетті жабдықтары — бір жерде.', ''],
+    add:'Жоба қосу', edit:'Жобаны өңдеу', newTitle:'Жаңа жоба', back:'Барлық жобалар', search:'Жоба, технология немесе жабдық бойынша іздеу…',
+    allStatus:'Барлық кезеңдер', allCat:'Барлық бағыттар', empty:'Әзірге жоба жоқ.', noMatch:'Сүзгіге сәйкес жоба табылмады.',
+    entries:'жазба', tests:'тест', updated:'Жаңартылды', started:'Басталды',
+    secSummary:'Қысқаша', secGoal:'Мақсаты', secDesc:'Техникалық сипаттама', secFocus:'Қазір не істеліп жатыр', secNext:'Келесі қадамдар',
+    secEval:'Жалпы бағалау', secTech:'Технологиялар', secHw:'Жабдықтар', secItems:'Қоймадағы жабдықтар', secNeeds:'Қажетті заттар', secJournal:'Жоба журналы',
+    noNeeds:'Бұл жобаға байланысты қажеттілік жоқ.', noEntries:'Журналда әзірге жазба жоқ.', allKinds:'Барлығы',
+    addEntry:'Жазба қосу', editEntry:'Жазбаны өңдеу', save:'Сақтау', cancel:'Болдырмау', del:'Жою', delProject:'Бұл жобаны және оның барлық жазбаларын жою керек пе?',
+    delEntry:'Бұл жазбаны жою керек пе?', saved:'Сақталды', deleted:'Жойылды', fTitle:'Жоба атауы', fSlug:'Қысқа атау (сілтеме үшін, латынша)',
+    fStatus:'Кезеңі', fCategory:'Бағыты', fStarted:'Басталған күні', fSummary:'Қысқаша (1–2 сөйлем)', fGoal:'Мақсаты', fDesc:'Техникалық сипаттама',
+    fFocus:'Қазір не істеліп жатыр', fNext:'Келесі қадамдар', fEval:'Жалпы бағалау (кемшіліктері, жақсартылатын жерлері)', fTech:'Технологиялар (үтір арқылы)',
+    fHw:'Жабдықтар (мәтін)', fItems:'Қоймадан жабдық таңдау', fCover:'Мұқаба суреті', fKind:'Жазба түрі', fDate:'Күні', fETitle:'Тақырып',
+    fResult:'Нәтиже (қысқа, сандармен)', fBody:'Толығырақ (журнал үзінділері, байқаулар)', fImages:'Суреттер', mdHint:'**қалың**, `код`, ```код блогы```, «- » тізім',
+    offline:'Жобалар тек сервер қосулы кезде көрінеді.', share:'Сілтемені көшіру', copied:'Сілтеме көшірілді',
+    st:{idea:'Идея', research:'Зерттеу', prototype:'Прототип', testing:'Сынақта', working:'Жұмыс істейді', paper:'Мақала', paused:'Тоқтатылған', done:'Аяқталды'},
+    kind:{progress:'Прогресс', test:'Тест', issue:'Мәселе', decision:'Шешім', evaluation:'Бағалау', milestone:'Кезең'}},
+  ru: {nav:'Проекты', page:['Проекты', 'Проекты и НИОКР', 'Цель, текущий этап, испытания, проблемы и нужное оборудование каждого проекта — в одном месте.', ''],
+    add:'Добавить проект', edit:'Редактировать проект', newTitle:'Новый проект', back:'Все проекты', search:'Поиск по проекту, технологии или оборудованию…',
+    allStatus:'Все этапы', allCat:'Все направления', empty:'Проектов пока нет.', noMatch:'По фильтру проекты не найдены.',
+    entries:'записей', tests:'тестов', updated:'Обновлено', started:'Начат',
+    secSummary:'Кратко', secGoal:'Цель', secDesc:'Техническое описание', secFocus:'Над чем работаем сейчас', secNext:'Следующие шаги',
+    secEval:'Общая оценка', secTech:'Технологии', secHw:'Оборудование', secItems:'Оборудование со склада', secNeeds:'Необходимые вещи', secJournal:'Журнал проекта',
+    noNeeds:'Для этого проекта потребностей нет.', noEntries:'В журнале пока нет записей.', allKinds:'Все',
+    addEntry:'Добавить запись', editEntry:'Редактировать запись', save:'Сохранить', cancel:'Отмена', del:'Удалить', delProject:'Удалить проект и все его записи?',
+    delEntry:'Удалить эту запись?', saved:'Сохранено', deleted:'Удалено', fTitle:'Название проекта', fSlug:'Короткое имя (для ссылки, латиницей)',
+    fStatus:'Этап', fCategory:'Направление', fStarted:'Дата начала', fSummary:'Кратко (1–2 предложения)', fGoal:'Цель', fDesc:'Техническое описание',
+    fFocus:'Над чем работаем сейчас', fNext:'Следующие шаги', fEval:'Общая оценка (недостатки, что улучшить)', fTech:'Технологии (через запятую)',
+    fHw:'Оборудование (текст)', fItems:'Выбрать оборудование со склада', fCover:'Обложка', fKind:'Тип записи', fDate:'Дата', fETitle:'Заголовок',
+    fResult:'Результат (кратко, с цифрами)', fBody:'Подробнее (фрагменты логов, наблюдения)', fImages:'Изображения', mdHint:'**жирный**, `код`, ```блок кода```, «- » список',
+    offline:'Проекты видны только когда сервер работает.', share:'Копировать ссылку', copied:'Ссылка скопирована',
+    st:{idea:'Идея', research:'Исследование', prototype:'Прототип', testing:'Испытания', working:'Работает', paper:'Статья', paused:'Приостановлен', done:'Завершён'},
+    kind:{progress:'Прогресс', test:'Тест', issue:'Проблема', decision:'Решение', evaluation:'Оценка', milestone:'Этап'}},
+  tr: {nav:'Projeler', page:['Projeler', 'Projeler ve Ar-Ge çalışmaları', 'Her projenin amacı, aşaması, testleri, sorunları ve gereken ekipmanları — tek yerde.', ''],
+    add:'Proje ekle', edit:'Projeyi düzenle', newTitle:'Yeni proje', back:'Tüm projeler', search:'Proje, teknoloji veya ekipmanda ara…',
+    allStatus:'Tüm aşamalar', allCat:'Tüm alanlar', empty:'Henüz proje yok.', noMatch:'Filtreye uyan proje yok.',
+    entries:'kayıt', tests:'test', updated:'Güncellendi', started:'Başladı',
+    secSummary:'Özet', secGoal:'Amaç', secDesc:'Teknik açıklama', secFocus:'Şu an ne üzerinde çalışılıyor', secNext:'Sonraki adımlar',
+    secEval:'Genel değerlendirme', secTech:'Teknolojiler', secHw:'Ekipmanlar', secItems:'Envanterdeki ekipmanlar', secNeeds:'Gerekli malzemeler', secJournal:'Proje günlüğü',
+    noNeeds:'Bu projeye bağlı ihtiyaç yok.', noEntries:'Günlükte henüz kayıt yok.', allKinds:'Hepsi',
+    addEntry:'Kayıt ekle', editEntry:'Kaydı düzenle', save:'Kaydet', cancel:'Vazgeç', del:'Sil', delProject:'Proje ve tüm kayıtları silinsin mi?',
+    delEntry:'Bu kayıt silinsin mi?', saved:'Kaydedildi', deleted:'Silindi', fTitle:'Proje adı', fSlug:'Kısa ad (link için, Latin harf)',
+    fStatus:'Aşama', fCategory:'Alan', fStarted:'Başlangıç tarihi', fSummary:'Özet (1–2 cümle)', fGoal:'Amaç', fDesc:'Teknik açıklama',
+    fFocus:'Şu an ne üzerinde çalışılıyor', fNext:'Sonraki adımlar', fEval:'Genel değerlendirme (eksikler, geliştirilecekler)', fTech:'Teknolojiler (virgülle)',
+    fHw:'Ekipmanlar (metin)', fItems:'Envanterden ekipman seç', fCover:'Kapak görseli', fKind:'Kayıt türü', fDate:'Tarih', fETitle:'Başlık',
+    fResult:'Sonuç (kısa, sayılarla)', fBody:'Ayrıntı (log parçaları, gözlemler)', fImages:'Görseller', mdHint:'**kalın**, `kod`, ```kod bloğu```, «- » liste',
+    offline:'Projeler yalnızca sunucu açıkken görünür.', share:'Linki kopyala', copied:'Link kopyalandı',
+    st:{idea:'Fikir', research:'Araştırma', prototype:'Prototip', testing:'Testte', working:'Çalışıyor', paper:'Makale', paused:'Durdu', done:'Bitti'},
+    kind:{progress:'İlerleme', test:'Test', issue:'Sorun', decision:'Karar', evaluation:'Değerlendirme', milestone:'Kilometre taşı'}},
+};
+for (const lang of Object.keys(PROJECT_TEXT)) if (UI[lang]?.pages) UI[lang].pages.projects = PROJECT_TEXT[lang].page;
+const PT = () => PROJECT_TEXT[state.lang] || PROJECT_TEXT.kz;
+const projState = {list:[], current:null, status:'', category:'', query:'', kind:'', editId:null, entryId:null, cover:undefined, images:[]};
+
+// Safe markdown subset: everything is escaped first, then a few constructs are re-enabled.
+function md(src) {
+  const blocks = String(src || '').split(/```/);
+  return blocks.map((block, i) => {
+    if (i % 2) return `<pre class="md-code">${esc(block.replace(/^[a-z]*\n/, ''))}</pre>`;
+    const inline = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    return block.split(/\n{2,}/).map(par => {
+      const lines = par.split('\n').filter(l => l.trim());
+      if (!lines.length) return '';
+      if (lines.every(l => /^\s*[-•]\s+/.test(l))) return `<ul>${lines.map(l => `<li>${inline(l.replace(/^\s*[-•]\s+/, ''))}</li>`).join('')}</ul>`;
+      if (/^#{1,4}\s/.test(lines[0])) return `<h4>${inline(lines[0].replace(/^#+\s*/, ''))}</h4>` + (lines.length > 1 ? `<p>${lines.slice(1).map(inline).join('<br>')}</p>` : '');
+      return `<p>${lines.map(inline).join('<br>')}</p>`;
+    }).join('');
+  }).join('');
+}
+async function encodeImage(file) {
+  if (!file || !/^image\//.test(file.type) || file.size > 30 * 1024 * 1024) throw new Error('JPEG/PNG/WebP');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale)); canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', .85).split(',')[1];
+  } finally { URL.revokeObjectURL(url); }
+}
+const imgSrc = v => v && v.length > 80 ? 'data:image/jpeg;base64,' + v : photoSrc(v);
+
+async function loadProjects() {
+  if (state.staticMode) { projState.list = []; return; }
+  try { projState.list = await api('/api/projects'); } catch (e) { toast(e.message, true); }
+}
+function projectHash(slug) { return slug ? '#/projects/' + slug : '#/projects'; }
+async function showProjects(slug = '') {
+  await loadProjects();
+  const p = slug ? projState.list.find(x => x.slug === slug) : null;
+  if (p) await openProject(p.id, false);
+  else { projState.current = null; renderProjects(); }
+  if (state.page === 'projects' && location.hash !== projectHash(p ? p.slug : '')) history.replaceState(null, '', projectHash(p ? p.slug : ''));
+}
+async function openProject(id, push = true) {
+  try { projState.current = await api('/api/projects/' + id); } catch (e) { toast(e.message, true); return; }
+  projState.kind = '';
+  if (push) history.pushState(null, '', projectHash(projState.current.slug));
+  renderProjects();
+  window.scrollTo({top:0});
+}
+function renderProjects() {
+  const root = $('#projects-view');
+  if (!root) return;
+  const t = PT();
+  if (state.staticMode) { root.innerHTML = `<div class="empty">${icon('alert')}<p>${esc(t.offline)}</p></div>`; return; }
+  root.innerHTML = projState.current ? projectDetail(projState.current) : projectList();
+}
+function projectList() {
+  const t = PT();
+  const all = projState.list;
+  const q = normalize(projState.query);
+  const cats = [...new Set(all.map(p => p.category).filter(Boolean))].sort();
+  const rows = all.filter(p => (!projState.status || p.status === projState.status) && (!projState.category || p.category === projState.category) &&
+    (!q || normalize([p.title, p.summary, p.technologies, p.hardware, p.category].join(' ')).includes(q)));
+  const counts = PROJECT_STATUSES.map(s => [s, all.filter(p => p.status === s).length]).filter(([, n]) => n);
+  const opt = (v, label, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
+  return `<div class="proj-status-strip">${counts.map(([s, n]) => `<button type="button" class="proj-chip st-${s}${projState.status === s ? ' active' : ''}" data-proj-status="${s}"><strong>${n}</strong> ${esc(t.st[s])}</button>`).join('')}</div>
+    <div class="toolbar need-toolbar"><label class="search">${icon('search')}<input id="proj-search" type="search" placeholder="${esc(t.search)}" value="${esc(projState.query)}" autocomplete="off"></label>
+      <select id="proj-status-filter">${opt('', t.allStatus, projState.status)}${PROJECT_STATUSES.map(s => opt(s, t.st[s], projState.status)).join('')}</select>
+      <select id="proj-cat-filter">${opt('', t.allCat, projState.category)}${cats.map(c => opt(c, c, projState.category)).join('')}</select>
+      <button type="button" class="btn primary" id="proj-add">${icon('plus')}${esc(t.add)}</button></div>
+    <div class="proj-grid">${rows.length ? rows.map(projectCard).join('') : `<div class="empty"><p>${esc(all.length ? t.noMatch : t.empty)}</p></div>`}</div>`;
+}
+function projectCard(p) {
+  const t = PT();
+  const tech = p.technologies.split(',').map(s => s.trim()).filter(Boolean).slice(0, 5);
+  return `<article class="proj-card" data-proj-open="${p.id}" tabindex="0">
+    <div class="proj-cover">${p.cover ? `<img src="${esc(photoSrc(p.cover))}" alt="" loading="lazy">` : `<span>${esc(p.title.slice(0, 1))}</span>`}<span class="proj-status st-${p.status}">${esc(t.st[p.status])}</span></div>
+    <div class="proj-body"><small class="muted">${esc(p.category)}</small><h3>${esc(p.title)}</h3><p>${esc(p.summary)}</p>
+    <div class="proj-tech">${tech.map(x => `<span>${esc(x)}</span>`).join('')}</div></div>
+    <div class="proj-foot muted"><span>${p.entry_count} ${esc(t.entries)} · ${p.test_count} ${esc(t.tests)}</span><span>${esc((p.last_entry_on || p.updated_at || '').slice(0, 10))}</span></div></article>`;
+}
+function projectDetail(p) {
+  const t = PT();
+  const items = p.item_ids.map(id => find(id)).filter(Boolean);
+  const key = normalize(p.title), slug = p.slug;
+  const needs = needState.list.filter(n => n.project && (normalize(n.project) === key || normalize(n.project).includes(slug.replace(/-/g, ' ')) || key.includes(normalize(n.project))));
+  const entries = p.entries.filter(e => !projState.kind || e.kind === projState.kind);
+  const kindsPresent = ENTRY_KINDS.filter(k => p.entries.some(e => e.kind === k));
+  const sec = (title, body) => body ? `<section class="proj-sec"><h3>${esc(title)}</h3>${body}</section>` : '';
+  const tech = p.technologies.split(',').map(s => s.trim()).filter(Boolean);
+  return `<div class="proj-detail">
+    <div class="proj-detail-bar"><button type="button" class="btn compact" id="proj-back">← ${esc(t.back)}</button><span class="spacer"></span>
+      <button type="button" class="btn compact" id="proj-share">${esc(t.share)}</button><button type="button" class="btn compact" id="proj-edit">${icon('edit')}${esc(t.edit)}</button></div>
+    <header class="proj-hero">${p.cover ? `<img src="${esc(photoSrc(p.cover))}" alt="">` : ''}<div>
+      <span class="proj-status st-${p.status}">${esc(t.st[p.status])}</span> <small class="muted">${esc(p.category)}</small>
+      <h2>${esc(p.title)}</h2><p class="proj-summary">${esc(p.summary)}</p>
+      <p class="muted">${p.started_on ? `${esc(t.started)}: ${esc(p.started_on)} · ` : ''}${esc(t.updated)}: ${esc((p.updated_at || '').slice(0, 10))}</p></div></header>
+    <div class="proj-columns"><div class="proj-main">
+      ${sec(t.secGoal, p.goal ? md(p.goal) : '')}
+      ${sec(t.secFocus, p.current_focus ? md(p.current_focus) : '')}
+      ${sec(t.secDesc, p.description ? md(p.description) : '')}
+      ${sec(t.secNext, p.next_steps ? md(p.next_steps) : '')}
+      ${sec(t.secEval, p.evaluation ? md(p.evaluation) : '')}
+      <section class="proj-sec"><div class="proj-journal-head"><h3>${esc(t.secJournal)}</h3><button type="button" class="btn compact primary" id="entry-add">${icon('plus')}${esc(t.addEntry)}</button></div>
+        <div class="proj-kinds"><button type="button" class="btn compact${projState.kind ? '' : ' active'}" data-entry-kind="">${esc(t.allKinds)} (${p.entries.length})</button>${kindsPresent.map(k =>
+          `<button type="button" class="btn compact${projState.kind === k ? ' active' : ''}" data-entry-kind="${k}">${esc(t.kind[k])} (${p.entries.filter(e => e.kind === k).length})</button>`).join('')}</div>
+        <div class="proj-timeline">${entries.length ? entries.map(entryCard).join('') : `<p class="muted">${esc(t.noEntries)}</p>`}</div></section>
+    </div><aside class="proj-side">
+      ${sec(t.secTech, tech.length ? `<div class="proj-tech">${tech.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : '')}
+      ${sec(t.secHw, p.hardware ? md(p.hardware) : '')}
+      ${sec(t.secItems, items.length ? `<ul class="proj-items">${items.map(i => `<li>${i.photo ? `<img src="${esc(photoSrc(i.photo))}" alt="">` : ''}<span>${esc(tItem(i).name)}</span><small>${fmt(i.quantity)} ${esc(tUnit(i.unit))}</small></li>`).join('')}</ul>` : '')}
+      <section class="proj-sec"><h3>${esc(t.secNeeds)}</h3>${needs.length ? `<ul class="proj-needs">${needs.map(n => `<li class="pri-${n.priority}"><span class="need-pri pri-${n.priority}">${esc(NT().pri[n.priority])}</span> ${esc(n.name)} <small class="muted">${fmt(n.quantity)} ${esc(tUnit(n.unit))} · ${esc(NT().st[n.status])}</small></li>`).join('')}</ul>` : `<p class="muted">${esc(t.noNeeds)}</p>`}</section>
+    </aside></div></div>`;
+}
+function entryCard(e) {
+  const t = PT();
+  return `<article class="entry kind-${e.kind}"><div class="entry-dot"></div><div class="entry-content">
+    <div class="entry-top"><span class="entry-kind kind-${e.kind}">${esc(t.kind[e.kind])}</span><time>${esc(e.happened_on)}</time><button type="button" class="icon-btn" data-entry-edit="${e.id}" aria-label="${esc(t.editEntry)}">${icon('edit')}</button></div>
+    <h4>${esc(e.title)}</h4>${e.result ? `<p class="entry-result">${esc(e.result)}</p>` : ''}${e.body ? `<div class="entry-body">${md(e.body)}</div>` : ''}
+    ${e.images.length ? `<div class="entry-images">${e.images.map(n => `<a href="${esc(photoSrc(n))}" target="_blank" rel="noopener"><img src="${esc(photoSrc(n))}" alt="" loading="lazy"></a>`).join('')}</div>` : ''}</div></article>`;
+}
+function openProjectForm(id = null) {
+  requireAuth(() => {
+    const t = PT();
+    const p = id && projState.current && projState.current.id === id ? projState.current : null;
+    projState.editId = p ? p.id : null;
+    projState.cover = p ? p.cover : null;
+    const form = $('#project-form');
+    form.dataset.requestId = uid();
+    const v = k => esc(p ? (p[k] ?? '') : '');
+    const area = (name, label, rows = 3) => `<label class="full">${esc(label)}<textarea name="${name}" rows="${rows}" maxlength="20000">${v(name)}</textarea></label>`;
+    const cats = [...new Set(projState.list.map(x => x.category).filter(Boolean))].sort();
+    const chosen = new Set(p ? p.item_ids : []);
+    form.innerHTML = `<div class="dialog-head"><h2>${esc(p ? t.edit : t.newTitle)}</h2><button type="button" class="icon-btn" data-close aria-label="${esc(t.cancel)}">${icon('close')}</button></div>
+      <div class="dialog-body need-form-body">
+        <label class="full">${esc(t.fTitle)} *<input name="title" required maxlength="200" value="${v('title')}"></label>
+        <label>${esc(t.fSlug)} *<input name="slug" required maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" value="${v('slug')}"></label>
+        <label>${esc(t.fStatus)}<select name="status">${PROJECT_STATUSES.map(s => `<option value="${s}"${(p ? p.status : 'idea') === s ? ' selected' : ''}>${esc(t.st[s])}</option>`).join('')}</select></label>
+        <label>${esc(t.fCategory)}<input name="category" maxlength="100" list="proj-cats" value="${v('category')}"><datalist id="proj-cats">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist></label>
+        <label>${esc(t.fStarted)}<input name="started_on" type="date" value="${v('started_on')}"></label>
+        <label class="full">${esc(t.fSummary)}<input name="summary" maxlength="600" value="${v('summary')}"></label>
+        ${area('goal', t.fGoal)}${area('current_focus', t.fFocus)}${area('description', t.fDesc, 6)}${area('next_steps', t.fNext)}${area('evaluation', t.fEval)}
+        <label class="full">${esc(t.fTech)}<input name="technologies" maxlength="1000" value="${v('technologies')}"></label>
+        ${area('hardware', t.fHw, 2)}
+        <fieldset class="full proj-item-pick"><legend>${esc(t.fItems)}</legend><div>${state.items.filter(i => !i.archived).map(i =>
+          `<label><input type="checkbox" name="item" value="${i.id}"${chosen.has(i.id) ? ' checked' : ''}> ${esc(tItem(i).name)}</label>`).join('')}</div></fieldset>
+        <label class="full">${esc(t.fCover)}<input type="file" id="proj-cover-file" accept="image/*"></label>
+        <div class="full proj-cover-preview">${p && p.cover ? `<img src="${esc(photoSrc(p.cover))}" alt="">` : ''}</div>
+        <p class="muted full">${esc(t.mdHint)}</p>
+        <p id="project-error" class="form-error full" role="alert" hidden></p></div>
+      <div class="dialog-footer">${p ? `<button type="button" class="btn danger" id="project-delete">${icon('trash')}${esc(t.del)}</button>` : ''}<span class="spacer"></span><button type="button" class="btn" data-close>${esc(t.cancel)}</button><button type="submit" class="btn primary">${esc(t.save)}</button></div>`;
+    $('#project-dialog').showModal();
+  });
+}
+function openEntryForm(id = null) {
+  requireAuth(() => {
+    const t = PT();
+    const e = id ? projState.current.entries.find(x => x.id === id) : null;
+    projState.entryId = e ? e.id : null;
+    projState.images = e ? [...e.images] : [];
+    const form = $('#entry-form');
+    form.dataset.requestId = uid();
+    const v = k => esc(e ? (e[k] ?? '') : '');
+    form.innerHTML = `<div class="dialog-head"><h2>${esc(e ? t.editEntry : t.addEntry)}</h2><button type="button" class="icon-btn" data-close aria-label="${esc(t.cancel)}">${icon('close')}</button></div>
+      <div class="dialog-body need-form-body">
+        <label>${esc(t.fKind)}<select name="kind">${ENTRY_KINDS.map(k => `<option value="${k}"${(e ? e.kind : 'progress') === k ? ' selected' : ''}>${esc(t.kind[k])}</option>`).join('')}</select></label>
+        <label>${esc(t.fDate)} *<input name="happened_on" type="date" required value="${e ? v('happened_on') : new Date().toISOString().slice(0, 10)}"></label>
+        <label class="full">${esc(t.fETitle)} *<input name="title" required maxlength="300" value="${v('title')}"></label>
+        <label class="full">${esc(t.fResult)}<input name="result" maxlength="2000" value="${v('result')}"></label>
+        <label class="full">${esc(t.fBody)}<textarea name="body" rows="8" maxlength="30000">${v('body')}</textarea></label>
+        <label class="full">${esc(t.fImages)}<input type="file" id="entry-image-files" accept="image/*" multiple></label>
+        <div class="full entry-image-preview"></div>
+        <p class="muted full">${esc(t.mdHint)}</p>
+        <p id="entry-error" class="form-error full" role="alert" hidden></p></div>
+      <div class="dialog-footer">${e ? `<button type="button" class="btn danger" id="entry-delete">${icon('trash')}${esc(t.del)}</button>` : ''}<span class="spacer"></span><button type="button" class="btn" data-close>${esc(t.cancel)}</button><button type="submit" class="btn primary">${esc(t.save)}</button></div>`;
+    renderEntryImages();
+    $('#entry-dialog').showModal();
+  });
+}
+function renderEntryImages() {
+  $('.entry-image-preview').innerHTML = projState.images.map((v, i) => `<figure><img src="${esc(imgSrc(v))}" alt=""><button type="button" class="icon-btn" data-remove-image="${i}">${icon('close')}</button></figure>`).join('');
+}
+async function saveProject(event) {
+  event.preventDefault();
+  const t = PT(), form = $('#project-form'), f = form.elements, err = $('#project-error');
+  err.hidden = true;
+  const body = {title:f.title.value, slug:f.slug.value.trim().toLowerCase(), status:f.status.value, category:f.category.value, started_on:f.started_on.value,
+    summary:f.summary.value, goal:f.goal.value, current_focus:f.current_focus.value, description:f.description.value, next_steps:f.next_steps.value,
+    evaluation:f.evaluation.value, technologies:f.technologies.value, hardware:f.hardware.value,
+    item_ids:[...form.querySelectorAll('input[name="item"]:checked')].map(c => Number(c.value)), cover:projState.cover};
+  const p = projState.editId ? projState.current : null;
+  busy(form, true);
+  try {
+    const saved = p ? await api('/api/projects/' + p.id, {method:'PATCH', body:JSON.stringify({...body, version:p.version})})
+      : await api('/api/projects', {method:'POST', body:JSON.stringify({...body, request_id:form.dataset.requestId})});
+    $('#project-dialog').close(); toast(t.saved);
+    await loadProjects(); await openProject(saved.id, !p);
+  } catch (e) { err.textContent = e.message; err.hidden = false; } finally { busy(form, false); }
+}
+async function saveEntry(event) {
+  event.preventDefault();
+  const t = PT(), form = $('#entry-form'), f = form.elements, err = $('#entry-error');
+  err.hidden = true;
+  const body = {kind:f.kind.value, happened_on:f.happened_on.value, title:f.title.value, result:f.result.value, body:f.body.value, images:projState.images};
+  const e = projState.entryId ? projState.current.entries.find(x => x.id === projState.entryId) : null;
+  busy(form, true);
+  try {
+    if (e) await api('/api/entries/' + e.id, {method:'PATCH', body:JSON.stringify({...body, version:e.version})});
+    else await api(`/api/projects/${projState.current.id}/entries`, {method:'POST', body:JSON.stringify({...body, request_id:form.dataset.requestId})});
+    $('#entry-dialog').close(); toast(t.saved);
+    await openProject(projState.current.id, false);
+  } catch (x) { err.textContent = x.message; err.hidden = false; } finally { busy(form, false); }
+}
+function projectEvents() {
+  const root = $('#projects-view');
+  root.addEventListener('input', e => {
+    if (e.target.id === 'proj-search') { projState.query = e.target.value; const pos = e.target.selectionStart; renderProjects(); const s = $('#proj-search'); s.focus(); s.setSelectionRange(pos, pos); }
+  });
+  root.addEventListener('change', e => {
+    if (e.target.id === 'proj-status-filter') projState.status = e.target.value;
+    else if (e.target.id === 'proj-cat-filter') projState.category = e.target.value;
+    else return;
+    renderProjects();
+  });
+  root.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.projOpen) openProject(Number(e.target.dataset.projOpen)); });
+  root.addEventListener('click', async e => {
+    const el = e.target.closest('[data-proj-open],[data-proj-status],[data-entry-kind],[data-entry-edit],button');
+    if (!el) return;
+    if (el.dataset.projOpen) openProject(Number(el.dataset.projOpen));
+    else if (el.dataset.projStatus) { projState.status = projState.status === el.dataset.projStatus ? '' : el.dataset.projStatus; renderProjects(); }
+    else if (el.dataset.entryKind !== undefined) { projState.kind = el.dataset.entryKind; renderProjects(); }
+    else if (el.dataset.entryEdit) openEntryForm(Number(el.dataset.entryEdit));
+    else if (el.id === 'proj-add') openProjectForm();
+    else if (el.id === 'proj-back') { projState.current = null; history.pushState(null, '', projectHash('')); renderProjects(); }
+    else if (el.id === 'proj-edit') openProjectForm(projState.current.id);
+    else if (el.id === 'entry-add') openEntryForm();
+    else if (el.id === 'proj-share') { try { await navigator.clipboard.writeText(location.href); toast(PT().copied); } catch (_) { toast(location.href); } }
+  });
+  $('#project-form').addEventListener('submit', saveProject);
+  $('#entry-form').addEventListener('submit', saveEntry);
+  $('#project-dialog').addEventListener('change', async e => {
+    if (e.target.id !== 'proj-cover-file' || !e.target.files[0]) return;
+    try { projState.cover = await encodeImage(e.target.files[0]); $('.proj-cover-preview').innerHTML = `<img src="${esc(imgSrc(projState.cover))}" alt="">`; } catch (x) { toast(x.message, true); }
+  });
+  $('#entry-dialog').addEventListener('change', async e => {
+    if (e.target.id !== 'entry-image-files') return;
+    for (const file of [...e.target.files].slice(0, 12 - projState.images.length)) {
+      try { projState.images.push(await encodeImage(file)); } catch (x) { toast(x.message, true); }
+    }
+    e.target.value = ''; renderEntryImages();
+  });
+  for (const id of ['#project-dialog', '#entry-dialog']) $(id).addEventListener('click', async e => {
+    const t = PT();
+    if (e.target.closest('[data-close]')) $(id).close();
+    else if (e.target.closest('[data-remove-image]')) { projState.images.splice(Number(e.target.closest('[data-remove-image]').dataset.removeImage), 1); renderEntryImages(); }
+    else if (e.target.closest('#project-delete')) {
+      if (!await confirmAction(t.del, t.delProject, t.del)) return;
+      try { await api('/api/projects/' + projState.current.id, {method:'DELETE'}); $(id).close(); projState.current = null; history.pushState(null, '', projectHash('')); await showProjects(); toast(t.deleted); } catch (x) { toast(x.message, true); }
+    } else if (e.target.closest('#entry-delete')) {
+      if (!await confirmAction(t.del, t.delEntry, t.del)) return;
+      try { await api('/api/entries/' + projState.entryId, {method:'DELETE'}); $(id).close(); await openProject(projState.current.id, false); toast(t.deleted); } catch (x) { toast(x.message, true); }
+    }
+  });
+  window.addEventListener('popstate', () => {
+    const m = location.hash.match(/^#\/projects(?:\/([a-z0-9-]+))?$/);
+    if (m) { if (state.page !== 'projects') navigate('projects', '', m[1] || ''); else showProjects(m[1] || ''); }
+  });
 }
 // Purchase requests ("needs"): what the workshop must buy, how urgently and for which project.
 const NEED_PRIORITIES = ['urgent', 'high', 'normal', 'low'];
@@ -1167,6 +1496,7 @@ function events() {
   $$('.nav[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
   $('#camera-btn').addEventListener('click',openCameras);
   needEvents();
+  projectEvents();
   $('#camera-dialog').addEventListener('close',stopCameras);
   $('#camera-dialog').addEventListener('click',cameraControl);
   $('#camera-dialog').addEventListener('change',e=>{if(e.target.id==='rec-date'){camState.recDate=e.target.value;camState.recName='';renderRecordings();}});
@@ -1231,6 +1561,8 @@ async function boot() {
     renderUnits();
     connected(true);options();stats();render();
     loadNeeds();
+    const projectLink=location.hash.match(/^#\/projects(?:\/([a-z0-9-]+))?$/);
+    if(projectLink)navigate('projects','',projectLink[1]||'');
   }catch(e){
     try {
       const snapResp = await fetch('data_snapshot.json', {cache:'no-store'});
