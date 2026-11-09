@@ -2721,11 +2721,14 @@ button.need-sum:hover {
 
 .proj-cover {
   position: relative;
+  overflow: hidden;
   aspect-ratio: 16 / 9;
   background: var(--bg-tertiary);
 }
 
 .proj-cover img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2817,9 +2820,11 @@ button.need-sum:hover {
 
 .proj-hero img {
   width: 100%;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   aspect-ratio: 16 / 9;
-  object-fit: cover;
+  object-fit: contain;
+  background: #ffffff;
 }
 
 .proj-hero h2 {
@@ -2965,7 +2970,7 @@ button.need-sum:hover {
 .entry-images,
 .entry-image-preview {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 8px;
   margin-top: 8px;
 }
@@ -2974,8 +2979,10 @@ button.need-sum:hover {
 .entry-image-preview img {
   width: 100%;
   aspect-ratio: 16 / 10;
-  object-fit: cover;
+  object-fit: contain;
+  border: 1px solid var(--border);
   border-radius: 6px;
+  background: #ffffff;
 }
 
 .entry-image-preview figure {
