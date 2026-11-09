@@ -40,6 +40,7 @@ SOURCE_RE = re.compile(r'^IMG_[0-9]{4}\.jpeg$')
 ADMIN_KEY = os.environ.get('ATOLYE_ADMIN_KEY', 'ashyqaspan')
 CORS_HEADERS = 'Content-Type, X-App-Token, X-Admin-Key, X-Confirm-Restore'
 CAMERA_RE = re.compile(r'^cam[0-9]{1,2}$')
+REC_RE = re.compile(r'^([0-9]{4}-[0-9]{2}-[0-9]{2})_([0-9]{2})-([0-9]{2})-[0-9]{2}\.mp4$')
 
 
 class Problem(Exception):
@@ -724,6 +725,14 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/cameras':
                 self.check_admin()
                 return self.reply(200, dict(self.server.cameras.capabilities(), cameras=self.server.cameras.list()))
+            match_rec = re.fullmatch(r'/api/recordings/([a-z0-9]+)', path)
+            if match_rec:
+                self.check_admin()
+                return self.reply(200, self.server.cameras.recordings(match_rec.group(1), parse_qs(parsed.query).get('date', [''])[0]))
+            match_rec_file = re.fullmatch(r'/api/recordings/([a-z0-9]+)/([0-9_-]+\.mp4)', path)
+            if match_rec_file:
+                self.server.cameras.check_live_token(parse_qs(parsed.query).get('t', [''])[0])
+                return self.send_file_range(self.server.cameras.recording_path(match_rec_file.group(1), match_rec_file.group(2)), 'video/mp4')
             match_live = re.fullmatch(r'/api/cameras/([a-z0-9]+)/live\.mp4', path)
             if match_live:
                 query = parse_qs(parsed.query)
@@ -759,6 +768,47 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             logging.exception('GET işlemi başarısız')
             self.reply(500, {'error': 'İşlem tamamlanamadı. Terminal kaydını kontrol edin.'})
+
+    def send_file_range(self, path, content_type):
+        """Serves a file honouring a single HTTP Range so <video> can seek in recordings."""
+        size = path.stat().st_size
+        start, end = 0, size - 1
+        m = re.fullmatch(r'bytes=([0-9]*)-([0-9]*)', self.headers.get('Range', '').strip())
+        if m and (m.group(1) or m.group(2)):
+            if m.group(1):
+                start = int(m.group(1))
+                end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+            else:
+                start = max(0, size - int(m.group(2)))
+            if start > end or start >= size:
+                self.send_response(416)
+                self.send_header('Content-Range', 'bytes */%d' % size)
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+                return
+            self.send_response(206)
+            self.send_header('Content-Range', 'bytes %d-%d/%d' % (start, end, size))
+        else:
+            self.send_response(200)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Length', str(end - start + 1))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.cors_headers()
+        self.end_headers()
+        try:
+            with path.open('rb') as f:
+                f.seek(start)
+                left = end - start + 1
+                while left > 0:
+                    chunk = f.read(min(65536, left))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    left -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def stream_live(self, ident, quality):
         try:
@@ -882,9 +932,11 @@ class Cameras:
     Live URLs carry a signed, expiring token because <video> cannot send the admin key header."""
     LIVE_TOKEN_TTL = 4 * 3600
 
-    def __init__(self, names='', go2rtc='', onvif=''):
+    def __init__(self, names='', go2rtc='', onvif='', rec_dir='', rec_limit_gb=0):
         self.names = dict(part.split('=', 1) for part in names.split(',') if '=' in part)
         self.go2rtc = go2rtc.rstrip('/')
+        self.rec_dir = Path(rec_dir) if rec_dir else None
+        self.rec_limit_gb = rec_limit_gb
         self.onvif = {k: onvif_ptz.PTZCamera(v) for k, v in (p.split('=', 1) for p in onvif.split(',') if '=' in p)}
         self.secret = secrets.token_bytes(32)
 
@@ -935,7 +987,34 @@ class Cameras:
         return {'ok': True}
 
     def capabilities(self):
-        return {'live': bool(self.go2rtc), 'ptz': sorted(self.onvif)}
+        return {'live': bool(self.go2rtc), 'ptz': sorted(self.onvif), 'rec': bool(self.rec_dir)}
+
+    def _rec_cam(self, ident):
+        if not self.rec_dir or not CAMERA_RE.fullmatch(ident) or ident not in self.names:
+            raise Problem('Kayıt bulunamadı.', 404)
+        return self.rec_dir/ident
+
+    def recordings(self, ident, date=''):
+        """Recorded 5-minute segments of one camera for a day (default: the newest day with recordings)."""
+        folder = self._rec_cam(ident)
+        files = sorted(f for f in folder.glob('*.mp4') if REC_RE.fullmatch(f.name)) if folder.is_dir() else []
+        dates = sorted({REC_RE.fullmatch(f.name).group(1) for f in files}, reverse=True)
+        day = date if date in dates else (dates[0] if dates else '')
+        total = sum(f.stat().st_size for f in self.rec_dir.glob('cam*/*.mp4'))
+        segments = []
+        for f in files:
+            m = REC_RE.fullmatch(f.name)
+            if m.group(1) == day:
+                segments.append({'name': f.name, 'time': m.group(2)+':'+m.group(3), 'size': f.stat().st_size})
+        return {'dates': dates, 'date': day, 'segments': segments, 'total_bytes': total, 'limit_gb': self.rec_limit_gb}
+
+    def recording_path(self, ident, name):
+        if not REC_RE.fullmatch(name):
+            raise Problem('Kayıt bulunamadı.', 404)
+        path = self._rec_cam(ident)/name
+        if not path.is_file():
+            raise Problem('Kayıt bulunamadı.', 404)
+        return path
 
 
 def make_server(store, port, host='0.0.0.0', public_hosts=(), allowed_origins=(), cameras=None):
@@ -970,7 +1049,8 @@ def main():
     try:
         store = Store(args.data_dir)
         cameras = Cameras(os.environ.get('ATOLYE_CAMERA_NAMES', ''), os.environ.get('ATOLYE_GO2RTC', ''),
-                          os.environ.get('ATOLYE_CAMERA_ONVIF', ''))
+                          os.environ.get('ATOLYE_CAMERA_ONVIF', ''), os.environ.get('ATOLYE_REC_DIR', ''),
+                          float(os.environ.get('ATOLYE_REC_LIMIT_GB', '0') or 0))
         server = make_server(store, args.port, args.host, args.public_host, args.allow_origin, cameras)
     except (OSError, sqlite3.Error) as exc:
         print('Başlatılamadı:', exc)

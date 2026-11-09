@@ -674,7 +674,8 @@ h3 {
 
 .filters select,
 .need-toolbar select,
-.need-status-select {
+.need-status-select,
+#rec-date {
   font-size: 12px;
   font-weight: 500;
   border: 1px solid var(--border);
@@ -2612,4 +2613,50 @@ button.need-sum:hover {
   .need-pri-pick {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.rec-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rec-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rec-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  border-radius: var(--radius-md);
+}
+
+.rec-segments {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.rec-hour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.rec-hour-label {
+  width: 52px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.rec-segments .btn.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
 }

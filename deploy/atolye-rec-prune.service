@@ -1,0 +1,8 @@
+[Unit]
+Description=Atolye recording size limit
+
+[Service]
+Type=oneshot
+User=ubuntu
+Environment=ATOLYE_REC_LIMIT_GB=100
+ExecStart=/usr/bin/python3 /usr/local/bin/atolye-rec-prune

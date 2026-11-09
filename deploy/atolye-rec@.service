@@ -1,0 +1,15 @@
+# Continuous camera recording (see atolye-rec-run.sh, installed as /usr/local/bin/atolye-rec-run).
+# Enable per camera: systemctl enable --now atolye-rec@cam1
+[Unit]
+Description=Atolye camera recording (%i)
+After=go2rtc.service
+Requires=go2rtc.service
+
+[Service]
+User=ubuntu
+ExecStart=/usr/local/bin/atolye-rec-run %i
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

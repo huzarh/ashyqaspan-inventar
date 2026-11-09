@@ -389,6 +389,40 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.request('/api/needs/%d' % created['id'], None, h, method='DELETE')[0], 403)
         self.assertEqual(self.request('/api/needs/%d' % created['id'], None, dict(h, **{'X-Admin-Key': 'ashyqaspan'}), method='DELETE')[0], 200)
 
+    def test_recordings_list_and_range_playback(self):
+        rec = os.path.join(self.temp.name, 'rec')
+        os.makedirs(os.path.join(rec, 'cam1'), exist_ok=True)
+        data = bytes(range(256)) * 40  # 10240 bytes
+        for name in ('2026-11-08_23-55-00.mp4', '2026-11-09_10-00-00.mp4', '2026-11-09_10-05-00.mp4'):
+            with open(os.path.join(rec, 'cam1', name), 'wb') as f:
+                f.write(data)
+        self.server.cameras = app.Cameras('cam1=X', 'http://127.0.0.1:9', '', rec, 100)
+        key = {'X-Admin-Key': 'ashyqaspan'}
+        try:
+            self.assertEqual(self.request('/api/recordings/cam1')[0], 403)
+            status, raw, _ = self.request('/api/recordings/cam1', headers=key)
+            idx = json.loads(raw)
+            self.assertEqual((status, idx['dates'], idx['date']), (200, ['2026-11-09', '2026-11-08'], '2026-11-09'))
+            self.assertEqual([s['time'] for s in idx['segments']], ['10:00', '10:05'])
+            self.assertEqual(idx['total_bytes'], 3 * len(data))
+            idx = json.loads(self.request('/api/recordings/cam1?date=2026-11-08', headers=key)[1])
+            self.assertEqual([s['name'] for s in idx['segments']], ['2026-11-08_23-55-00.mp4'])
+            h = {'X-App-Token': self.server.token, 'X-Admin-Key': 'ashyqaspan'}
+            token = json.loads(self.request('/api/cameras/live-token', {}, h)[1])['token']
+            url = '/api/recordings/cam1/2026-11-09_10-00-00.mp4?t='
+            self.assertEqual(self.request(url + 'bad')[0], 403)
+            status, raw, headers = self.request(url + token)
+            self.assertEqual((status, len(raw), headers['Accept-Ranges']), (200, len(data), 'bytes'))
+            status, raw, headers = self.request(url + token, headers={'Range': 'bytes=100-199'})
+            self.assertEqual((status, raw, headers['Content-Range']), (206, data[100:200], 'bytes 100-199/%d' % len(data)))
+            status, raw, _ = self.request(url + token, headers={'Range': 'bytes=-10'})
+            self.assertEqual((status, raw), (206, data[-10:]))
+            self.assertEqual(self.request(url + token, headers={'Range': 'bytes=99999-'})[0], 416)
+            self.assertEqual(self.request('/api/recordings/cam1/..%2Fx.mp4?t=' + token)[0], 404)
+            self.assertEqual(self.request('/api/recordings/cam1/2026-11-09_11-00-00.mp4?t=' + token)[0], 404)
+        finally:
+            self.server.cameras = app.Cameras()
+
     def test_host_and_file_traversal_guards(self):
         self.assertEqual(self.request('/api/bootstrap', headers={'Host': 'evil.invalid'})[0], 403)
         self.assertEqual(self.request('/../app.py')[0], 404)
