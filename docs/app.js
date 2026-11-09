@@ -1033,8 +1033,11 @@ async function renderCameras() {
   try {
     if (!camState.token || camState.token.expires * 1000 - Date.now() < 120000) camState.token = await api('/api/cameras/live-token', {method:'POST', body:'{}'});
   } catch (e) { toast(e.message, true); return; }
+  // the user may have switched mode or closed the dialog while the token was being fetched
+  if (camState.mode !== 'live' || !$('#camera-dialog').open) return;
   for (const c of shown) {
     const v = $(`.camera-tile[data-cam="${c.id}"] video`);
+    if (!v) continue;
     v.src = `${API_BASE}/api/cameras/${encodeURIComponent(c.id)}/live.mp4?q=${camState.quality}&t=${encodeURIComponent(camState.token.token)}`;
     v.addEventListener('playing', () => { const a = $(`.camera-tile[data-cam="${c.id}"] .camera-age`); if (a) { a.textContent = '● ' + t.camLive; a.parentElement.parentElement.classList.remove('stale'); } });
     v.addEventListener('error', () => { const a = $(`.camera-tile[data-cam="${c.id}"] .camera-age`); if (a) { a.textContent = t.camStale; a.parentElement.parentElement.classList.add('stale'); } });
@@ -1131,7 +1134,9 @@ async function refreshCamera(cam) {
     const response = await fetch(API_BASE + '/api/cameras/' + encodeURIComponent(cam.id) + '.jpg', {cache:'no-store', headers:{'X-Admin-Key':state.adminKey}});
     if (!response.ok) throw new Error(response.status === 403 ? 'auth' : 'http');
     const url = URL.createObjectURL(await response.blob());
-    $('img', tile).src = url;
+    const img = $('img', tile);
+    if (!img || !tile.isConnected) { URL.revokeObjectURL(url); return; }
+    img.src = url;
     if (camState.urls[cam.id]) URL.revokeObjectURL(camState.urls[cam.id]);
     camState.urls[cam.id] = url;
     age.textContent = new Date().toLocaleTimeString(t.locale);
