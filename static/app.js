@@ -774,7 +774,7 @@ const PROJECT_TEXT = {
     fFocus:'Қазір не істеліп жатыр', fNext:'Келесі қадамдар', fEval:'Жалпы бағалау (кемшіліктері, жақсартылатын жерлері)', fTech:'Технологиялар (үтір арқылы)',
     fHw:'Жабдықтар (мәтін)', fItems:'Қоймадан жабдық таңдау', fCover:'Мұқаба суреті', fKind:'Жазба түрі', fDate:'Күні', fETitle:'Тақырып',
     fResult:'Нәтиже (қысқа, сандармен)', fBody:'Толығырақ (журнал үзінділері, байқаулар)', fImages:'Суреттер', mdHint:'**қалың**, `код`, ```код блогы```, «- » тізім',
-    offline:'Жобалар тек сервер қосулы кезде көрінеді.', share:'Сілтемені көшіру', copied:'Сілтеме көшірілді', gallery:'Галерея', cover:'Мұқаба',
+    offlineCopy:'Сервер қазір қолжетімсіз — жобалардың жарияланған көшірмесі көрсетілген', offline:'Жобалар тек сервер қосулы кезде көрінеді.', share:'Сілтемені көшіру', copied:'Сілтеме көшірілді', gallery:'Галерея', cover:'Мұқаба',
     st:{idea:'Идея', research:'Зерттеу', prototype:'Прототип', testing:'Сынақта', working:'Жұмыс істейді', paper:'Мақала', paused:'Тоқтатылған', done:'Аяқталды'},
     kind:{progress:'Прогресс', test:'Тест', issue:'Мәселе', decision:'Шешім', evaluation:'Бағалау', milestone:'Кезең'}},
   ru: {nav:'Проекты', page:['Проекты', 'Проекты и НИОКР', 'Цель, текущий этап, испытания, проблемы и нужное оборудование каждого проекта — в одном месте.', ''],
@@ -790,7 +790,7 @@ const PROJECT_TEXT = {
     fFocus:'Над чем работаем сейчас', fNext:'Следующие шаги', fEval:'Общая оценка (недостатки, что улучшить)', fTech:'Технологии (через запятую)',
     fHw:'Оборудование (текст)', fItems:'Выбрать оборудование со склада', fCover:'Обложка', fKind:'Тип записи', fDate:'Дата', fETitle:'Заголовок',
     fResult:'Результат (кратко, с цифрами)', fBody:'Подробнее (фрагменты логов, наблюдения)', fImages:'Изображения', mdHint:'**жирный**, `код`, ```блок кода```, «- » список',
-    offline:'Проекты видны только когда сервер работает.', share:'Копировать ссылку', copied:'Ссылка скопирована', gallery:'Галерея', cover:'Обложка',
+    offlineCopy:'Сервер сейчас недоступен — показана опубликованная копия проектов', offline:'Проекты видны только когда сервер работает.', share:'Копировать ссылку', copied:'Ссылка скопирована', gallery:'Галерея', cover:'Обложка',
     st:{idea:'Идея', research:'Исследование', prototype:'Прототип', testing:'Испытания', working:'Работает', paper:'Статья', paused:'Приостановлен', done:'Завершён'},
     kind:{progress:'Прогресс', test:'Тест', issue:'Проблема', decision:'Решение', evaluation:'Оценка', milestone:'Этап'}},
   tr: {nav:'Projeler', page:['Projeler', 'Projeler ve Ar-Ge çalışmaları', 'Her projenin amacı, aşaması, testleri, sorunları ve gereken ekipmanları — tek yerde.', ''],
@@ -806,7 +806,7 @@ const PROJECT_TEXT = {
     fFocus:'Şu an ne üzerinde çalışılıyor', fNext:'Sonraki adımlar', fEval:'Genel değerlendirme (eksikler, geliştirilecekler)', fTech:'Teknolojiler (virgülle)',
     fHw:'Ekipmanlar (metin)', fItems:'Envanterden ekipman seç', fCover:'Kapak görseli', fKind:'Kayıt türü', fDate:'Tarih', fETitle:'Başlık',
     fResult:'Sonuç (kısa, sayılarla)', fBody:'Ayrıntı (log parçaları, gözlemler)', fImages:'Görseller', mdHint:'**kalın**, `kod`, ```kod bloğu```, «- » liste',
-    offline:'Projeler yalnızca sunucu açıkken görünür.', share:'Linki kopyala', copied:'Link kopyalandı', gallery:'Galeri', cover:'Kapak',
+    offlineCopy:'Sunucuya şu an ulaşılamıyor — projelerin yayımlanmış kopyası gösteriliyor', offline:'Projeler yalnızca sunucu açıkken görünür.', share:'Linki kopyala', copied:'Link kopyalandı', gallery:'Galeri', cover:'Kapak',
     st:{idea:'Fikir', research:'Araştırma', prototype:'Prototip', testing:'Testte', working:'Çalışıyor', paper:'Makale', paused:'Durdu', done:'Bitti'},
     kind:{progress:'İlerleme', test:'Test', issue:'Sorun', decision:'Karar', evaluation:'Değerlendirme', milestone:'Kilometre taşı'}},
 };
@@ -844,9 +844,26 @@ async function encodeImage(file) {
 }
 const imgSrc = v => v && v.length > 80 ? 'data:image/jpeg;base64,' + v : photoSrc(v);
 
+// Public read-only snapshot (projects + needs) published with the static site, shown when the server is unreachable.
+const snapState = {data:null, promise:null};
+function publicSnapshot() {
+  // one shared request: concurrent callers (needs + projects) wait for the same download
+  if (!snapState.promise) snapState.promise = fetch('public_snapshot.json', {cache:'no-store'})
+    .then(r => (r.ok ? r.json() : null)).catch(() => null).then(d => (snapState.data = d));
+  return snapState.promise;
+}
+const snapNote = (text) => {
+  const d = snapState.data && snapState.data.generated_at ? String(snapState.data.generated_at).slice(0, 10) : '';
+  return `<div class="offline-copy">${icon('alert')}<span>${esc(text)}${d ? ' · ' + esc(d) : ''}</span></div>`;
+};
 async function loadProjects() {
-  if (state.staticMode) { projState.list = []; return; }
-  try { projState.list = await api('/api/projects'); } catch (e) { toast(e.message, true); }
+  projState.offline = false;
+  if (!state.staticMode) {
+    try { projState.list = await api('/api/projects'); return; } catch (e) { if (e.status) { toast(e.message, true); return; } }
+  }
+  const snap = await publicSnapshot();
+  projState.list = snap && Array.isArray(snap.projects) ? snap.projects : [];
+  projState.offline = true;
 }
 function projectHash(slug) { return slug ? '#/projects/' + slug : '#/projects'; }
 async function showProjects(slug = '') {
@@ -857,7 +874,17 @@ async function showProjects(slug = '') {
   if (state.page === 'projects' && location.hash !== projectHash(p ? p.slug : '')) history.replaceState(null, '', projectHash(p ? p.slug : ''));
 }
 async function openProject(id, push = true) {
-  try { projState.current = await api('/api/projects/' + id); } catch (e) { toast(e.message, true); return; }
+  let p = null;
+  if (!state.staticMode && !projState.offline) {
+    try { p = await api('/api/projects/' + id); } catch (e) { if (e.status) { toast(e.message, true); return; } }
+  }
+  if (!p) {
+    const snap = await publicSnapshot();
+    p = snap && snap.details ? snap.details[String(id)] : null;
+    if (!p) { toast(PT().offline, true); return; }
+    projState.offline = true;
+  }
+  projState.current = p;
   projState.kind = '';
   if (push) history.pushState(null, '', projectHash(projState.current.slug));
   renderProjects();
@@ -867,8 +894,10 @@ function renderProjects() {
   const root = $('#projects-view');
   if (!root) return;
   const t = PT();
-  if (state.staticMode) { root.innerHTML = `<div class="empty">${icon('alert')}<p>${esc(t.offline)}</p></div>`; return; }
-  root.innerHTML = projState.current ? projectDetail(projState.current) : projectList();
+  const offline = state.staticMode || projState.offline;
+  if (offline && !snapState.data && !projState.list.length && !projState.current) { root.innerHTML = `<div class="empty">${icon('alert')}<p>${esc(t.offline)}</p></div>`; return; }
+  root.classList.toggle('readonly', offline);
+  root.innerHTML = (offline ? snapNote(t.offlineCopy) : '') + (projState.current ? projectDetail(projState.current) : projectList());
 }
 function projectList() {
   const t = PT();
@@ -1136,7 +1165,7 @@ const NEED_TEXT = {
     allPri:'Барлық шұғылдық', fOpen:'Ашық (алынбаған)', fAll:'Барлығы', sumUrgent:'Шұғыл', sumUrgentSub:'тез арада алу керек',
     sumOpen:'Ашық қажеттілік', sumOpenSub:'әлі алынбаған', sumCost:'Болжамды сома', sumCostSub:'бағасы жазылған ашықтар',
     sumBought:'Сатып алынды', sumBoughtSub:'барлық уақытта', empty:'Әзірге ештеңе жоқ. «Қажеттілік қосу» батырмасын басыңыз.',
-    noMatch:'Сүзгіге сәйкес ештеңе табылмады.', toStock:'Қоймаға қосу', open:'Сілтеме', offline:'Тізім тек сервер қосулы кезде көрінеді.',
+    noMatch:'Сүзгіге сәйкес ештеңе табылмады.', toStock:'Қоймаға қосу', open:'Сілтеме', offlineCopy:'Сервер қазір қолжетімсіз — тізімнің жарияланған көшірмесі көрсетілген', offline:'Тізім тек сервер қосулы кезде көрінеді.',
     pri:{urgent:'Шұғыл', high:'Жоғары', normal:'Қалыпты', low:'Төмен'},
     priHint:{urgent:'жұмыс тоқтап тұр', high:'осы аптада', normal:'жоспар бойынша', low:'кейін болса да болады'},
     st:{new:'Жаңа', approved:'Мақұлданды', ordered:'Тапсырыс берілді', bought:'Сатып алынды', rejected:'Бас тартылды'}},
@@ -1149,7 +1178,7 @@ const NEED_TEXT = {
     allPri:'Любая срочность', fOpen:'Открытые (не куплено)', fAll:'Все', sumUrgent:'Срочно', sumUrgentSub:'купить как можно скорее',
     sumOpen:'Открытые', sumOpenSub:'ещё не куплено', sumCost:'Ожидаемая сумма', sumCostSub:'открытые с ценой',
     sumBought:'Куплено', sumBoughtSub:'за всё время', empty:'Пока пусто. Нажмите «Добавить потребность».',
-    noMatch:'По фильтру ничего не найдено.', toStock:'Добавить на склад', open:'Ссылка', offline:'Список виден только когда сервер работает.',
+    noMatch:'По фильтру ничего не найдено.', toStock:'Добавить на склад', open:'Ссылка', offlineCopy:'Сервер сейчас недоступен — показана опубликованная копия списка', offline:'Список виден только когда сервер работает.',
     pri:{urgent:'Срочно', high:'Высокая', normal:'Обычная', low:'Низкая'},
     priHint:{urgent:'работа стоит', high:'на этой неделе', normal:'по плану', low:'можно позже'},
     st:{new:'Новая', approved:'Одобрено', ordered:'Заказано', bought:'Куплено', rejected:'Отклонено'}},
@@ -1162,7 +1191,7 @@ const NEED_TEXT = {
     allPri:'Tüm aciliyetler', fOpen:'Açık (alınmamış)', fAll:'Hepsi', sumUrgent:'Acil', sumUrgentSub:'hemen alınmalı',
     sumOpen:'Açık ihtiyaç', sumOpenSub:'henüz alınmadı', sumCost:'Tahmini tutar', sumCostSub:'fiyatı yazılı açıklar',
     sumBought:'Alındı', sumBoughtSub:'tüm zamanlar', empty:'Henüz bir şey yok. «İhtiyaç ekle»ye basın.',
-    noMatch:'Filtreye uyan kayıt yok.', toStock:'Envantere ekle', open:'Link', offline:'Liste yalnızca sunucu açıkken görünür.',
+    noMatch:'Filtreye uyan kayıt yok.', toStock:'Envantere ekle', open:'Link', offlineCopy:'Sunucuya şu an ulaşılamıyor — listenin yayımlanmış kopyası gösteriliyor', offline:'Liste yalnızca sunucu açıkken görünür.',
     pri:{urgent:'Acil', high:'Yüksek', normal:'Normal', low:'Düşük'},
     priHint:{urgent:'iş durdu', high:'bu hafta', normal:'plana göre', low:'sonra da olur'},
     st:{new:'Yeni', approved:'Onaylandı', ordered:'Sipariş verildi', bought:'Alındı', rejected:'Reddedildi'}},
@@ -1173,8 +1202,13 @@ const needState = {list:[], status:'open', priority:'', project:'', query:'', ed
 const money = v => new Intl.NumberFormat(L().locale, {maximumFractionDigits:0}).format(v);
 
 async function loadNeeds() {
-  if (state.staticMode) { needState.list = []; updateNeedsBadge(); return; }
-  try { needState.list = await api('/api/needs'); } catch (e) { toast(e.message, true); }
+  needState.offline = false;
+  if (!state.staticMode) {
+    try { needState.list = await api('/api/needs'); updateNeedsBadge(); return; } catch (e) { if (e.status) { toast(e.message, true); updateNeedsBadge(); return; } }
+  }
+  const snap = await publicSnapshot();
+  needState.list = snap && Array.isArray(snap.needs) ? snap.needs : [];
+  needState.offline = true;
   updateNeedsBadge();
 }
 function updateNeedsBadge() {
@@ -1199,14 +1233,16 @@ function renderNeeds() {
   const root = $('#needs-view');
   if (!root) return;
   const t = NT();
-  if (state.staticMode) { root.innerHTML = `<div class="empty">${icon('alert')}<p>${esc(t.offline)}</p></div>`; return; }
+  const offline = state.staticMode || needState.offline;
+  if (offline && !snapState.data && !needState.list.length) { root.innerHTML = `<div class="empty">${icon('alert')}<p>${esc(t.offline)}</p></div>`; return; }
+  root.classList.toggle('readonly', offline);
   const all = needState.list;
   const open = all.filter(n => NEED_OPEN.includes(n.status));
   const cost = open.reduce((s, n) => s + (n.price || 0) * n.quantity, 0);
   const projects = [...new Set(all.map(n => n.project).filter(Boolean))].sort();
   const opt = (v, label, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
   const rows = needsVisible();
-  root.innerHTML = `
+  root.innerHTML = (offline ? snapNote(t.offlineCopy) : '') + `
     <div class="need-summary">
       <button type="button" class="need-sum urgent" data-need-filter="urgent"><strong>${open.filter(n => n.priority === 'urgent').length}</strong><span>${esc(t.sumUrgent)}</span><small>${esc(t.sumUrgentSub)}</small></button>
       <button type="button" class="need-sum" data-need-filter="open"><strong>${open.length}</strong><span>${esc(t.sumOpen)}</span><small>${esc(t.sumOpenSub)}</small></button>
@@ -1612,11 +1648,14 @@ async function boot() {
       let saved = null;
       try { saved = JSON.parse(localStorage.getItem('atolye-static-db-v1') || 'null'); } catch (_) {}
       state.items = (saved && Array.isArray(saved.items)) ? saved.items : snap.items;
-      state.moves = (saved && Array.isArray(saved.moves)) ? saved.moves : snap.moves;
+      state.moves = (saved && Array.isArray(saved.moves)) ? saved.moves : (snap.moves || snap.movements || []);
       state.units = snap.units || state.units;
       state.ready = true;
       renderUnits();
-      connected(true);options();stats();render();
+      connected(false);options();stats();render();
+      loadNeeds();
+      const offlineLink = location.hash.match(/^#\/projects(?:\/([a-z0-9-]+))?$/);
+      if (offlineLink) navigate('projects', '', offlineLink[1] || '');
       return;
     } catch (_) {}
     const t=L();connected(false);$('#records').innerHTML=`<div class="empty">${icon('alert')}<strong>${t.offlineTitle}</strong><p>${t.offlineDesc}</p><button class="btn primary" data-action="retry">${t.retryBtn}</button></div>`;$('#result-count').textContent=t.connOff;toast(e.message,true);

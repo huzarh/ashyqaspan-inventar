@@ -3155,3 +3155,21 @@ button.need-sum:hover {
   z-index: 1;
   background: rgba(255, 255, 255, 0.9);
 }
+
+/* published read-only copy shown while the server is unreachable */
+.offline-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid #f3d27a;
+  border-radius: 10px;
+  background: #fff8e1;
+  color: #5b4600;
+  font-size: 0.9rem;
+}
+.offline-copy svg { flex: none; width: 18px; height: 18px; }
+.readonly #proj-add, .readonly #proj-edit, .readonly #entry-add, .readonly [data-entry-edit],
+.readonly #need-add, .readonly [data-need-edit], .readonly [data-need-stock] { display: none !important; }
+.readonly select[data-need-status] { pointer-events: none; opacity: 0.75; }
